@@ -1,0 +1,58 @@
+@startuml use_case_diagram
+left to right direction
+skinparam packageStyle rectangle
+skinparam usecase {
+  BackgroundColor LightBlue
+  BorderColor DarkBlue
+  ArrowColor Black
+}
+skinparam actor {
+  BackgroundColor Gold
+  BorderColor DarkOrange
+}
+
+actor "Khách vãng lai\n(Guest)" as Guest
+actor "Người báo cáo\n(Reporter)" as Reporter
+actor "Người cứu hộ\n(Verified Rescuer)" as Rescuer
+actor "Quản trị viên\n(Admin)" as Admin
+
+Guest <|-- Reporter
+Reporter <|-- Rescuer
+
+rectangle "Hệ thống Cứu hộ Paws SOS" {
+  usecase "Xem bản đồ vùng nhiễu" as UC_ViewMap
+  usecase "Đăng báo cáo cứu hộ mới" as UC_Report
+  usecase "Cập nhật trạng thái báo cáo cá nhân" as UC_UpdateOwnReport
+  usecase "Đăng ký Định danh (KYC)" as UC_SubmitKYC
+  
+  usecase "Tiếp nhận ca cứu hộ" as UC_Claim
+  usecase "Giải mã tọa độ GPS gốc" as UC_ViewExactGPS
+  usecase "Xác nhận hoàn tất cứu hộ\n(Chụp ảnh Realtime)" as UC_Confirm
+  usecase "Cập nhật ảnh hậu nhận nuôi" as UC_Tracking
+  
+  usecase "Quản lý & Duyệt hồ sơ KYC" as UC_ManageKYC
+  usecase "Quản trị dữ liệu & Khóa tài khoản" as UC_ManageSystem
+}
+
+Guest --> UC_ViewMap
+
+Reporter --> UC_Report
+Reporter --> UC_UpdateOwnReport
+Reporter --> UC_SubmitKYC
+
+Rescuer --> UC_Claim
+UC_Claim..> UC_ViewExactGPS : <<include>>
+Rescuer --> UC_Confirm
+Rescuer --> UC_Tracking
+
+Admin --> UC_ManageKYC
+Admin --> UC_ManageSystem
+Admin --> UC_ViewExactGPS
+
+note right of UC_ViewExactGPS
+  Chỉ được kích hoạt khi
+  trạng thái là In_Progress
+  và đúng người tiếp nhận.
+end note
+
+@enduml

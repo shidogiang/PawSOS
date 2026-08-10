@@ -1,0 +1,93 @@
+@startuml database_design_diagram
+' Cấu hình giao diện chuẩn kỹ thuật
+hide circle
+skinparam linetype ortho
+skinparam table {
+  BackgroundColor White
+  BorderColor Black
+  HeaderBackgroundColor LightGray
+}
+
+' Định nghĩa các macro để hiển thị khóa chính và khóa ngoại
+!define PK(x) <b><color:Black>x</color></b>
+!define FK(x) <i><color:DimGray>x</color></i>
+
+' ================= BẢNG DỮ LIỆU =================
+
+entity "Users" as users {
+  * PK(id) : UUID <<Khớp với auth.users của Supabase>>
+  --
+  email : VARCHAR(255) <<UNIQUE>>
+  role : VARCHAR(50) <<guest, reporter, rescuer, admin>>
+  kyc_status : VARCHAR(50) <<unverified, pending, verified, rejected>>
+  trust_score : INTEGER <<Mặc định: 100>>
+  created_at : TIMESTAMPTZ
+}
+
+entity "Animal_Reports" as animal_reports {
+  * PK(id) : UUID <<Tự sinh uuid_generate_v4()>>
+  --
+  * FK(reporter_id) : UUID <<Người đăng>>
+  FK(assigned_rescuer_id) : UUID <<Người nhận ca, Nullable>>
+  animal_type : VARCHAR(100)
+  status : VARCHAR(50) <<open, in_progress, resolved...>>
+  description : TEXT
+  photo_url : VARCHAR(512)
+  noise_location : geography(POINT, 4326) <<Tọa độ ảo - Lập chỉ mục GiST>>
+  created_at : TIMESTAMPTZ
+  updated_at : TIMESTAMPTZ
+}
+
+entity "Report_Locations_Secure" as locations_secure {
+  * PK(report_id) : UUID <<Foreign Key>>
+  --
+  exact_location : geography(POINT, 4326) <<Tọa độ thật - Bị ẩn bởi RLS>>
+}
+
+entity "Report_Status_History" as status_history {
+  * PK(id) : UUID
+  --
+  * FK(report_id) : UUID
+  * FK(changed_by_user_id) : UUID
+  old_status : VARCHAR(50)
+  new_status : VARCHAR(50)
+  reason : TEXT <<Nullable>>
+  changed_at : TIMESTAMPTZ <<Mặc định: now()>>
+}
+
+entity "Adoption_Tracking" as adoption_tracking {
+  * PK(id) : UUID
+  --
+  * FK(report_id) : UUID
+  * FK(adopter_id) : UUID
+  week_number : INTEGER <<1, 2, 3, 4>>
+  photo_url : VARCHAR(512) <<Nullable>>
+  status : VARCHAR(50) <<pending, uploaded, overdue>>
+  due_date : TIMESTAMPTZ <<Hạn chót tải ảnh>>
+  verified_by_admin : BOOLEAN <<Mặc định: FALSE>>
+}
+
+' ================= MỐI QUAN HỆ (RELATIONSHIPS) =================
+
+' Người dùng tạo nhiều báo cáo (1-N)
+users ||--o{ animal_reports : "Tạo báo cáo (reporter_id)"
+
+' Người dùng tiếp nhận nhiều báo cáo (1-N)
+users ||--o{ animal_reports : "Nhận cứu hộ (assigned_rescuer_id)"
+
+' Phân mảnh dọc 1-1 để bảo mật tọa độ gốc
+animal_reports ||--|| locations_secure : "Phân mảnh dọc bảo mật (1-1)"
+
+' Một báo cáo có nhiều lịch sử thay đổi (1-N)
+animal_reports ||--o{ status_history : "Ghi nhận lịch sử"
+
+' Người dùng thực hiện việc thay đổi trạng thái
+users ||--o{ status_history : "Người thao tác"
+
+' Báo cáo đã hoàn thành sinh ra quy trình tracking (1-N cho các tuần)
+animal_reports ||--o{ adoption_tracking : "Theo dõi nhận nuôi"
+
+' Người nhận nuôi bị ràng buộc với các task nộp ảnh
+users ||--o{ adoption_tracking : "Người nhận nuôi (adopter_id)"
+
+@enduml
