@@ -1,5 +1,12 @@
 import 'package:flutter/material.dart';
-import 'dart:async'; 
+import 'dart:async';
+import 'dart:io'; 
+import 'package:image_picker/image_picker.dart'; 
+import 'package:geolocator/geolocator.dart'; 
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:paw_sos/features/report/presentation/bloc/report_bloc.dart'; 
+import 'package:paw_sos/features/report/presentation/bloc/report_event.dart';
+import 'package:paw_sos/features/report/presentation/bloc/report_state.dart';
 
 class ReportEmergencyScreen extends StatefulWidget {
   const ReportEmergencyScreen({super.key});
@@ -9,66 +16,125 @@ class ReportEmergencyScreen extends StatefulWidget {
 }
 
 class _ReportEmergencyScreenState extends State<ReportEmergencyScreen> with SingleTickerProviderStateMixin {
-  bool _hasPhoto = false;
-  String _mockImageUrl = '';
   
-  // GPS State
+  bool _hasPhoto = false;
+  File? _photoFile; // Chứa file ảnh chụp thật
+  final ImagePicker _picker = ImagePicker();
+  
+  // Trạng thái GPS
   bool _isFetchingGps = true;
   String _gpsLat = '';
   String _gpsLng = '';
+  String _gpsAccuracy = '';
   
-  // Selection State
+  // Trạng thái Lựa chọn Form
   String _selectedAnimalType = 'Mèo'; 
   final List<String> _selectedConditions = []; 
+  final TextEditingController _noteCtrl = TextEditingController();
   
-  // Loading & Success State
-  bool _isSubmitting = false;
-  bool _isSuccess = false;
 
-  // Animation cho nút Camera 
   late AnimationController _pulseController;
 
   @override
   void initState() {
     super.initState();
-    
-    // Cài đặt Animation nhấp nháy 2 giây lặp lại liên tục
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 2),
     )..repeat();
 
-    // Mô phỏng quá trình tự động lấy GPS mất 1.5 giây
-    Future.delayed(const Duration(milliseconds: 1500), () {
-      if (mounted) {
-        setState(() {
-          _isFetchingGps = false;
-          _gpsLat = '10.762622';
-          _gpsLng = '106.660172';
-        });
-      }
-    });
+    // Vừa vào màn hình là kích hoạt radar tìm GPS thật ngay
+    _getCurrentLocation();
   }
 
   @override
   void dispose() {
     _pulseController.dispose();
+    _noteCtrl.dispose();
     super.dispose();
   }
 
-  void _openCamera() {
-    // TODO: Tích hợp thư viện image_picker ở đây
-    setState(() {
-      _hasPhoto = true;
-      _mockImageUrl = 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&w=800&q=80';
-    });
+  Future<void> _getCurrentLocation() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    // Kiểm tra xem GPS có đang bật 
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      if (mounted) setState(() => _isFetchingGps = false);
+      _showError("Vui lòng bật GPS (Vị trí) trên điện thoại!");
+      return;
+    }
+
+    // Kiểm tra quyền
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        if (mounted) setState(() => _isFetchingGps = false);
+        _showError("Cần quyền Vị trí để tạo báo cáo!");
+        return;
+      }
+    }
+    
+    if (permission == LocationPermission.deniedForever) {
+      if (mounted) setState(() => _isFetchingGps = false);
+      _showError("Quyền Vị trí bị chặn vĩnh viễn. Vui lòng mở Cài đặt máy để cấp quyền.");
+      return;
+    } 
+
+    // Lấy tọa độ 
+    try {
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.best,
+      );
+      
+      if (mounted) {
+        setState(() {
+          _gpsLat = position.latitude.toStringAsFixed(6); // 6 số thập phân
+          _gpsLng = position.longitude.toStringAsFixed(6);
+          _gpsAccuracy = '${position.accuracy.toStringAsFixed(0)}m';
+          _isFetchingGps = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isFetchingGps = false);
+      _showError("Lỗi không thể lấy tọa độ: $e");
+    }
+  }
+
+  // MỞ CAMERA VÀ CHỤP ẢNH
+  Future<void> _openCamera() async {
+    try {
+      // Gọi Camera API, ép nén ảnh xuống còn 50% chất lượng để tiết kiệm 3G
+      final XFile? photo = await _picker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 50, 
+        maxWidth: 1080,
+      );
+
+      if (photo != null) {
+        setState(() {
+          _photoFile = File(photo.path);
+          _hasPhoto = true;
+        });
+      }
+    } catch (e) {
+      _showError("Không thể mở Camera: $e");
+    }
   }
 
   void _retakePhoto() {
     setState(() {
       _hasPhoto = false;
-      _mockImageUrl = '';
+      _photoFile = null;
     });
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
   }
 
   void _toggleCondition(String condition) {
@@ -81,144 +147,165 @@ class _ReportEmergencyScreenState extends State<ReportEmergencyScreen> with Sing
     });
   }
 
-  void _submitReport() async {
-    // Ẩn bàn phím nếu đang bật
-    FocusScope.of(context).unfocus();
-
-    setState(() {
-      _isSubmitting = true;
-    });
-
-    await Future.delayed(const Duration(seconds: 2));
-
-    if (mounted) {
-      setState(() {
-        _isSuccess = true; 
-      });
-      
-      // Đợi thêm 2 giây để user đọc thông báo rồi tự back về Home
-      await Future.delayed(const Duration(seconds: 2));
-      if (mounted) {
-        Navigator.pop(context);
-      }
+  void _submitReport() {
+    if (_gpsLat.isEmpty || _gpsLng.isEmpty) {
+      _showError("Chưa lấy được tọa độ GPS!");
+      return;
     }
+    
+    if (_photoFile == null) {
+      _showError("Vui lòng chụp ảnh hiện trường!");
+      return;
+    }
+    
+    FocusScope.of(context).unfocus();
+    
+    // Gửi tín hiệu vào BLoC
+    context.read<ReportBloc>().add(SubmitEmergencyReport(
+      imageFile: _photoFile!,
+      lat: double.parse(_gpsLat),
+      lng: double.parse(_gpsLng),
+      animalType: _selectedAnimalType,
+      conditions: _selectedConditions,
+      note: _noteCtrl.text,
+    ));
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey.shade100,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        scrolledUnderElevation: 0, 
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black87, size: 20),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          'Báo cáo khẩn cấp',
-          style: TextStyle(color: Colors.black87, fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        centerTitle: true,
-      ),
-      body: Stack(
-        children: [
-          //  SCROLLABLE FORM
-          GestureDetector(
-            onTap: () => FocusScope.of(context).unfocus(), 
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.only(bottom: 100), 
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildCameraSection(),
-                  _buildGPSSection(),
-                  Divider(color: Colors.grey.shade300, thickness: 4, height: 32),
-                  _buildTypeSelection(),
-                  _buildConditionSelection(),
-                  _buildNoteSection(),
-                ],
-              ),
+    return BlocConsumer<ReportBloc, ReportState>(
+      listener: (context, state) {
+        if (state is ReportSuccess) {
+          // Báo thành công và quay về Home sau 2 giây
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Phát tín hiệu SOS thành công!"),
+              backgroundColor: Colors.green,
             ),
-          ),
+          );
+          Future.delayed(const Duration(seconds: 2), () {
+            if (mounted) Navigator.pop(context);
+          });
+        } else if (state is ReportFailure) {
+          _showError(state.message);
+        }
+      },
+      builder: (context, state) {
+        // Lấy state loading từ Bloc
+        final isSubmitting = state is ReportLoading;
+        final isSuccess = state is ReportSuccess;
 
-          //  STICKY BOTTOM BUTTON 
-          Positioned(
-            left: 0, right: 0, bottom: 0,
-            child: Container(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    offset: const Offset(0, -5),
-                    blurRadius: 10,
+        return Scaffold(
+          backgroundColor: Colors.grey.shade100,
+          appBar: AppBar(
+            backgroundColor: Colors.white,
+            elevation: 0,
+            scrolledUnderElevation: 0, 
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black87, size: 20),
+              onPressed: () => Navigator.pop(context),
+            ),
+            title: const Text(
+              'Báo cáo khẩn cấp',
+              style: TextStyle(color: Colors.black87, fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            centerTitle: true,
+          ),
+          body: Stack(
+            children: [
+              GestureDetector(
+                onTap: () => FocusScope.of(context).unfocus(), 
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.only(bottom: 100), 
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildCameraSection(),
+                      _buildGPSSection(),
+                      Divider(color: Colors.grey.shade300, thickness: 4, height: 32),
+                      _buildTypeSelection(),
+                      _buildConditionSelection(),
+                      _buildNoteSection(),
+                    ],
                   ),
-                ],
-              ),
-              child: ElevatedButton(
-                // Nút chỉ bấm được khi _hasPhoto == true
-                onPressed: _hasPhoto ? _submitReport : null,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFF43F5E),
-                  disabledBackgroundColor: Colors.grey.shade300,
-                  foregroundColor: Colors.white,
-                  disabledForegroundColor: Colors.grey.shade500,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  elevation: _hasPhoto ? 2 : 0,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.send, size: 20),
-                    const SizedBox(width: 8),
-                    const Text('Phát Tín Hiệu SOS', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                  ],
                 ),
               ),
-            ),
-          ),
 
-          //  OVERLAY LOADING & SUCCESS
-          if (_isSubmitting)
-            Container(
-              color: Colors.white.withOpacity(0.9),
-              width: double.infinity,
-              height: double.infinity,
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    if (!_isSuccess) ...[
-                      const CircularProgressIndicator(color: Color(0xFFF43F5E)),
-                      const SizedBox(height: 16),
-                      const Text('Đang mã hóa tọa độ...', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 8),
-                      const Text('Vui lòng không đóng ứng dụng', style: TextStyle(color: Colors.grey)),
-                    ] else ...[
-                      Container(
-                        width: 60, height: 60,
-                        decoration: BoxDecoration(color: Colors.green.shade100, shape: BoxShape.circle),
-                        child: const Icon(Icons.check, color: Colors.green, size: 36),
+              // Nút gửi báo cáo (Sticky Bottom)
+              Positioned(
+                left: 0, right: 0, bottom: 0,
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        offset: const Offset(0, -5),
+                        blurRadius: 10,
                       ),
-                      const SizedBox(height: 16),
-                      const Text('Tín hiệu đã phát!', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 8),
-                      const Text('Hệ thống đã tạo vùng nhiễu an toàn trên bản đồ.', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
-                    ]
-                  ],
+                    ],
+                  ),
+                  child: ElevatedButton(
+                    onPressed: (_hasPhoto && !isSubmitting) ? _submitReport : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFF43F5E),
+                      disabledBackgroundColor: Colors.grey.shade300,
+                      foregroundColor: Colors.white,
+                      disabledForegroundColor: Colors.grey.shade500,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: _hasPhoto ? 2 : 0,
+                    ),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.send, size: 20),
+                        SizedBox(width: 8),
+                        Text('Phát Tín Hiệu SOS', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  ),
                 ),
               ),
-            ),
-        ],
-      ),
+
+              // Overlay Loading
+              if (isSubmitting || isSuccess)
+                Container(
+                  color: Colors.white.withOpacity(0.9),
+                  width: double.infinity,
+                  height: double.infinity,
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        if (!isSuccess) ...[
+                          const CircularProgressIndicator(color: Color(0xFFF43F5E)),
+                          const SizedBox(height: 16),
+                          const Text('Đang tải ảnh và tọa độ...', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 8),
+                          const Text('Vui lòng không đóng ứng dụng', style: TextStyle(color: Colors.grey)),
+                        ] else ...[
+                          Container(
+                            width: 60, height: 60,
+                            decoration: BoxDecoration(color: Colors.green.shade100, shape: BoxShape.circle),
+                            child: const Icon(Icons.check, color: Colors.green, size: 36),
+                          ),
+                          const SizedBox(height: 16),
+                          const Text('Tín hiệu đã phát!', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 8),
+                          const Text('Hệ thống đã tạo vùng nhiễu an toàn trên bản đồ.', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
+                        ]
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
-
-  // Component con
 
   Widget _buildCameraSection() {
     return Padding(
@@ -249,7 +336,9 @@ class _ReportEmergencyScreenState extends State<ReportEmergencyScreen> with Sing
                   color: Colors.grey.shade200,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: Colors.grey.shade300, width: 2), 
-                  image: _hasPhoto ? DecorationImage(image: NetworkImage(_mockImageUrl), fit: BoxFit.cover) : null,
+                  image: _hasPhoto && _photoFile != null 
+                    ? DecorationImage(image: FileImage(_photoFile!), fit: BoxFit.cover) 
+                    : null,
                 ),
                 child: _hasPhoto 
                   ? Stack(
@@ -277,7 +366,6 @@ class _ReportEmergencyScreenState extends State<ReportEmergencyScreen> with Sing
                   : Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // Hiệu ứng Pulse Animation cho nút Camera
                         AnimatedBuilder(
                           animation: _pulseController,
                           builder: (context, child) {
@@ -288,8 +376,8 @@ class _ReportEmergencyScreenState extends State<ReportEmergencyScreen> with Sing
                                 shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.red.withOpacity(1 - _pulseController.value), // Càng to càng mờ
-                                    spreadRadius: _pulseController.value * 20, // Lan rộng ra
+                                    color: Colors.red.withOpacity(1 - _pulseController.value),
+                                    spreadRadius: _pulseController.value * 20,
                                   )
                                 ],
                               ),
@@ -339,7 +427,7 @@ class _ReportEmergencyScreenState extends State<ReportEmergencyScreen> with Sing
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    _isFetchingGps ? 'Độ chính xác: Đang tính...' : 'Độ chính xác: Tuyệt đối (4m)',
+                    _isFetchingGps ? 'Độ chính xác: Đang tính...' : 'Sai số khoảng: $_gpsAccuracy',
                     style: TextStyle(fontSize: 11, color: _isFetchingGps ? Colors.grey : Colors.green.shade700),
                   ),
                 ],
@@ -452,6 +540,7 @@ class _ReportEmergencyScreenState extends State<ReportEmergencyScreen> with Sing
           const Text('Mô tả thêm (Tùy chọn)', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
           TextField(
+            controller: _noteCtrl,
             maxLines: 3,
             decoration: InputDecoration(
               hintText: 'Ví dụ: Bé mèo con nằm dưới gầm xe màu đen...',

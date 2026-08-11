@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:paw_sos/model/AnimalReportModel.dart'; 
+import 'package:paw_sos/features/report/data/models/AnimalReportModel.dart'; 
 import 'package:paw_sos/screen/card/radar_item_card.dart';
 import 'active_rescue_screen.dart'; 
 class RescueMapScreen extends StatefulWidget {

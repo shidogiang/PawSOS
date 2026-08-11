@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:paw_sos/features/auth/presentation/pages/login_screen.dart'; 
 import 'package:paw_sos/screen/start/profile/kyc_screen.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../features/auth/presentation/bloc/auth_bloc.dart';
+import '../../../features/auth/presentation/bloc/auth_event.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
   void _handleLogout(BuildContext context) {
-  
+    context.read<AuthBloc>().add(AuthLogoutRequested());
+    
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (_) => const LoginScreen()),
@@ -306,4 +310,5 @@ class ProfileScreen extends StatelessWidget {
   Widget _buildDivider() {
     return Divider(height: 1, thickness: 1, color: Colors.grey.shade50, indent: 68);
   }
+  
 }

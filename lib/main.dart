@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
 import 'features/auth/presentation/pages/login_screen.dart';
 import 'screen/start/main_tab_screen.dart';
-import 'package:supabase_flutter/supabase_flutter.dart'; 
+import 'package:paw_sos/features/auth/data/datasources/auth_remote_data_source.dart';
+import 'package:paw_sos/features/auth/data/repositories/auth_repositories_impl.dart';
+import 'package:paw_sos/features/auth/presentation/bloc/auth_bloc.dart';
 void main()  async {
   WidgetsFlutterBinding.ensureInitialized();
   try{
@@ -15,8 +20,13 @@ void main()  async {
     debugPrint("Error initializing Supabase: $e");
   }
   //  Khởi tạo toàn bộ Dependency Injection trước khi chạy App
-
-  runApp(const PawsSOSApp());
+  final supabaseClient = Supabase.instance.client;
+  final authRemoteDataSource = AuthRemoteDataSourceImpl(supabaseClient);
+  final authRepository = AuthRepositoryImpl(authRemoteDataSource);
+  runApp(BlocProvider(
+    create: (context) => AuthBloc(authRepository: authRepository),
+    child: const PawsSOSApp(),
+  ));
 }
 
 class PawsSOSApp extends StatelessWidget {

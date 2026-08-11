@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:paw_sos/model/AnimalReportModel.dart'; 
+import 'package:paw_sos/features/report/data/models/AnimalReportModel.dart'; 
 class SOSItemCard extends StatelessWidget {
   final AnimalReportModel report; 
   final VoidCallback? onTap;

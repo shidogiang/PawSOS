@@ -20,7 +20,7 @@ class AuthRepositoryImpl implements IAuthRepository {
 
   @override
   Future<void> logout() async {
-    // Sẽ implement gọi supabase.auth.signOut() sau
+     await remoteDataSource.logout();
   }
 
   @override
