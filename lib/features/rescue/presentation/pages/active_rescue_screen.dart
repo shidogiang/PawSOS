@@ -1,4 +1,4 @@
-import '../../features/report/data/models/AnimalReportModel.dart';
+import '../../../report/data/models/AnimalReportModel.dart';
 import 'package:flutter/material.dart';
 import 'package:paw_sos/screen/main_function/contact/chat_screen.dart';
 import 'package:paw_sos/screen/main_function/contact/call_screen.dart';

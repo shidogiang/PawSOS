@@ -3,10 +3,17 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'features/auth/presentation/pages/login_screen.dart';
-import 'screen/start/main_tab_screen.dart';
 import 'package:paw_sos/features/auth/data/datasources/auth_remote_data_source.dart';
 import 'package:paw_sos/features/auth/data/repositories/auth_repositories_impl.dart';
 import 'package:paw_sos/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:paw_sos/features/report/data/datasources/report_remote_data_source.dart';
+import 'package:paw_sos/features/report/data/repositories/report_repository_impl.dart';
+import 'package:paw_sos/features/report/presentation/bloc/report_bloc.dart';
+import 'package:paw_sos/features/rescue/data/datasources/rescue_remote_data_source.dart';
+import 'package:paw_sos/features/rescue/data/repositories/rescue_repository_impl.dart';
+import 'package:paw_sos/features/rescue/domain/usecases/get_radar_reports_usecase.dart';
+import 'package:paw_sos/features/rescue/domain/usecases/accept_mission_usecase.dart';
+import 'package:paw_sos/features/rescue/presentation/bloc/rescue_bloc.dart';
 void main()  async {
   WidgetsFlutterBinding.ensureInitialized();
   try{
@@ -21,10 +28,31 @@ void main()  async {
   }
   //  Khởi tạo toàn bộ Dependency Injection trước khi chạy App
   final supabaseClient = Supabase.instance.client;
+  // khởi tạo data source và repository cho AuthBloc
   final authRemoteDataSource = AuthRemoteDataSourceImpl(supabaseClient);
   final authRepository = AuthRepositoryImpl(authRemoteDataSource);
-  runApp(BlocProvider(
-    create: (context) => AuthBloc(authRepository: authRepository),
+  // khởi tạo data source và repository cho ReportBloc
+  final reportRemoteDataSource = ReportRemoteDataSourceImpl(supabaseClient);
+  final reportRepository = ReportRepositoryImpl(reportRemoteDataSource);
+ // khởi tạo data source và repository cho RescueBloc
+  final rescueRemoteDataSource = RescueRemoteDataSourceImpl(supabaseClient);
+  final rescueRepository = RescueRepositoryImpl(rescueRemoteDataSource);
+
+  runApp(MultiBlocProvider(
+    providers:[
+      BlocProvider(
+        create: (context) => AuthBloc(authRepository: authRepository),
+      ),
+      BlocProvider(
+        create: (context) => ReportBloc(reportRepository: reportRepository),
+      ),
+      BlocProvider(
+        create: (context) => RescueBloc(
+          getRadarReportsUseCase: GetRadarReportsUseCase(rescueRepository),
+          acceptMissionUseCase: AcceptMissionUseCase(rescueRepository),
+        ),
+      ),
+    ],
     child: const PawsSOSApp(),
   ));
 }

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:paw_sos/screen/card/home_function_card/report_card.dart';
 import 'package:paw_sos/screen/card/home_function_card/hero_service_card.dart';
 import 'package:paw_sos/features/report/presentation/pages/report_screen.dart';
-import 'package:paw_sos/screen/main_function/rescue_map_screen.dart';
+import 'package:paw_sos/features/rescue/presentation/pages/rescue_map_screen.dart';
 import 'package:paw_sos/features/report/data/models/AnimalReportModel.dart'; 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});

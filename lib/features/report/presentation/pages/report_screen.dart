@@ -16,7 +16,7 @@ class ReportEmergencyScreen extends StatefulWidget {
 }
 
 class _ReportEmergencyScreenState extends State<ReportEmergencyScreen> with SingleTickerProviderStateMixin {
-  
+  // Trạng thái Camera
   bool _hasPhoto = false;
   File? _photoFile; // Chứa file ảnh chụp thật
   final ImagePicker _picker = ImagePicker();
@@ -32,6 +32,9 @@ class _ReportEmergencyScreenState extends State<ReportEmergencyScreen> with Sing
   final List<String> _selectedConditions = []; 
   final TextEditingController _noteCtrl = TextEditingController();
   
+  // Trạng thái Gửi báo cáo
+  // bool _isSubmitting = false; // Đã xóa vì BLoC quản lý
+  // bool _isSuccess = false;    // Đã xóa vì BLoC quản lý
 
   late AnimationController _pulseController;
 
@@ -44,7 +47,10 @@ class _ReportEmergencyScreenState extends State<ReportEmergencyScreen> with Sing
     )..repeat();
 
     // Vừa vào màn hình là kích hoạt radar tìm GPS thật ngay
-    _getCurrentLocation();
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted) setState(() => _isFetchingGps = true);
+      _getCurrentLocation();
+    });
   }
 
   @override
@@ -54,11 +60,12 @@ class _ReportEmergencyScreenState extends State<ReportEmergencyScreen> with Sing
     super.dispose();
   }
 
+  // HÀM 1: LẤY TỌA ĐỘ GPS THỰC TẾ
   Future<void> _getCurrentLocation() async {
     bool serviceEnabled;
     LocationPermission permission;
 
-    // Kiểm tra xem GPS có đang bật 
+    // Kiểm tra xem GPS có đang bật không
     serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
       if (mounted) setState(() => _isFetchingGps = false);
@@ -83,7 +90,7 @@ class _ReportEmergencyScreenState extends State<ReportEmergencyScreen> with Sing
       return;
     } 
 
-    // Lấy tọa độ 
+    // Lấy tọa độ (Độ chính xác cao nhất)
     try {
       Position position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.best,
@@ -91,7 +98,7 @@ class _ReportEmergencyScreenState extends State<ReportEmergencyScreen> with Sing
       
       if (mounted) {
         setState(() {
-          _gpsLat = position.latitude.toStringAsFixed(6); // 6 số thập phân
+          _gpsLat = position.latitude.toStringAsFixed(6); // Lấy 6 số thập phân
           _gpsLng = position.longitude.toStringAsFixed(6);
           _gpsAccuracy = '${position.accuracy.toStringAsFixed(0)}m';
           _isFetchingGps = false;
@@ -103,7 +110,7 @@ class _ReportEmergencyScreenState extends State<ReportEmergencyScreen> with Sing
     }
   }
 
-  // MỞ CAMERA VÀ CHỤP ẢNH
+  // HÀM 2: MỞ CAMERA VÀ CHỤP ẢNH
   Future<void> _openCamera() async {
     try {
       // Gọi Camera API, ép nén ảnh xuống còn 50% chất lượng để tiết kiệm 3G
@@ -173,6 +180,7 @@ class _ReportEmergencyScreenState extends State<ReportEmergencyScreen> with Sing
 
   @override
   Widget build(BuildContext context) {
+    // Bọc BlocConsumer để lắng nghe state
     return BlocConsumer<ReportBloc, ReportState>(
       listener: (context, state) {
         if (state is ReportSuccess) {
@@ -306,6 +314,8 @@ class _ReportEmergencyScreenState extends State<ReportEmergencyScreen> with Sing
       },
     );
   }
+
+  // --- CÁC COMPONENT CON GIAO DIỆN ---
 
   Widget _buildCameraSection() {
     return Padding(

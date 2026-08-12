@@ -5,9 +5,9 @@ import 'report_state.dart';
 
 class ReportBloc extends Bloc<ReportEvent, ReportState> {
   // Chỉ giao tiếp qua Interface, không quan tâm bên dưới dùng Supabase hay Firebase
-  final ReportRepository repository; 
+  final ReportRepository reportRepository; 
 
-  ReportBloc({required this.repository}) : super(ReportInitial()) {
+  ReportBloc({required this.reportRepository}) : super(ReportInitial()) {
     // Đăng ký lắng nghe event SubmitEmergencyReport
     on<SubmitEmergencyReport>(_onSubmitEmergencyReport);
   }
@@ -22,7 +22,7 @@ class ReportBloc extends Bloc<ReportEvent, ReportState> {
     
     try {
       // Gọi xuống tầng Data (Repository) để đẩy ảnh và data
-      await repository.submitReport(
+      await reportRepository.submitReport(
         imageFile: event.imageFile,
         lat: event.lat,
         lng: event.lng,

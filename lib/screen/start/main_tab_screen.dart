@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:paw_sos/screen/start/home_screen.dart';
 import 'package:paw_sos/screen/start/profile/profile_screen.dart';
-import 'package:paw_sos/screen/main_function/rescue_map_screen.dart';
+import 'package:paw_sos/features/rescue/presentation/pages/rescue_map_screen.dart';
 import 'package:paw_sos/screen/start/activity_history_screen.dart';
 class MainTabScreen extends StatefulWidget {
   const MainTabScreen({super.key});

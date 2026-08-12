@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:paw_sos/features/report/data/models/AnimalReportModel.dart'; 
 import 'package:paw_sos/screen/card/radar_item_card.dart';
 import 'active_rescue_screen.dart'; 
 class RescueMapScreen extends StatefulWidget {
-  final AnimalReportModel? initialReport; // Thêm tham số nhận dữ liệu từ màn trước
-  final bool isMainTab; // Xác định xem màn hình có đang mở bằng Bottom Navigation Bar không
+  final AnimalReportModel? initialReport;
+  final bool isMainTab;
 
   const RescueMapScreen({super.key, this.initialReport, this.isMainTab = false});
 
@@ -12,26 +14,25 @@ class RescueMapScreen extends StatefulWidget {
   State<RescueMapScreen> createState() => _RescueMapScreenState();
 }
 
-class _RescueMapScreenState extends State<RescueMapScreen> {
+class _RescueMapScreenState extends State<RescueMapScreen> with TickerProviderStateMixin {
   final List<AnimalReportModel> _nearbyReports = AnimalReportModel.getMockData();
   
-  bool _showDetailPanel = false; // Trạng thái bật/tắt Panel Chi tiết
-  bool _showRadarPanel = false; // Trạng thái bật/tắt Panel Radar
-  AnimalReportModel? _selectedReport; // Đang xem chi tiết con nào?
+  // Điều khiển Bản đồ
+  final MapController _mapController = MapController();
+  final LatLng _defaultLocation = const LatLng(10.762622, 106.660172); // Trung tâm TP.HCM
   
-  bool _isClaiming = false; // Đang call API?
+  bool _showDetailPanel = false;
+  bool _showRadarPanel = false;
+  AnimalReportModel? _selectedReport;
+  bool _isClaiming = false;
 
-  // initState để kiểm tra ngay khi mở màn hình
   @override
   void initState() {
     super.initState();
-    // Nếu màn hình trước  có truyền 1 report vào
     if (widget.initialReport != null) {
       _selectedReport = widget.initialReport;
-      _showDetailPanel = true; // Tự động đẩy Panel Xác nhận lên
+      _showDetailPanel = true;
     } else {
-      // Nếu không phải là Tab chính (nghĩa là user bấm nút "Xem tất cả" từ Trang chủ)
-      // thì tự động bật Panel Danh sách lên. Còn nếu ở Tab Radar thì giấu đi để xem bản đồ.
       _showRadarPanel = !widget.isMainTab;
     }
   }
@@ -41,28 +42,60 @@ class _RescueMapScreenState extends State<RescueMapScreen> {
       _selectedReport = report;
       _showDetailPanel = true;
     });
+
+    // Trượt bản đồ tới vùng nhiễu của ca này
+    if (report.noiseLat != null && report.noiseLng != null) {
+      _animatedMapMove(LatLng(report.noiseLat!, report.noiseLng!), 15.0);
+    }
   }
 
   void _closeDetail() {
     setState(() {
       _showDetailPanel = false;
-      _selectedReport = null; 
+      Future.delayed(const Duration(milliseconds: 400), () {
+        if (mounted && !_showDetailPanel) {
+          setState(() => _selectedReport = null);
+        }
+      });
     });
+  }
+
+  void _animatedMapMove(LatLng destLocation, double destZoom) {
+    final latTween = Tween<double>(begin: _mapController.camera.center.latitude, end: destLocation.latitude);
+    final lngTween = Tween<double>(begin: _mapController.camera.center.longitude, end: destLocation.longitude);
+    final zoomTween = Tween<double>(begin: _mapController.camera.zoom, end: destZoom);
+
+    final controller = AnimationController(duration: const Duration(milliseconds: 500), vsync: this);
+    final Animation<double> animation = CurvedAnimation(parent: controller, curve: Curves.fastOutSlowIn);
+
+    controller.addListener(() {
+      _mapController.move(
+        LatLng(latTween.evaluate(animation), lngTween.evaluate(animation)),
+        zoomTween.evaluate(animation),
+      );
+    });
+
+    animation.addStatusListener((status) {
+      if (status == AnimationStatus.completed || status == AnimationStatus.dismissed) {
+        controller.dispose();
+      }
+    });
+    controller.forward();
   }
 
   void _handleClaimRescue() async {
     setState(() => _isClaiming = true);
     
+    // Mô phỏng call API Update Status lên Supabase
     await Future.delayed(const Duration(milliseconds: 1500));
     
     if (mounted) {
       setState(() {
         _isClaiming = false;
-        _showDetailPanel = false; // Tự động ẩn Panel Detail
+        _showDetailPanel = false; 
       });
       
-      // Hiện thông báo Snack bar 
-       Navigator.of(context, rootNavigator: true).push(
+      Navigator.of(context, rootNavigator: true).push(
         MaterialPageRoute(
           builder: (context) => ActiveRescueScreen(mission: _selectedReport!),
         ),
@@ -72,61 +105,47 @@ class _RescueMapScreenState extends State<RescueMapScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // MediaQuery giúp lấy chiều cao màn hình để làm animation trượt
     final screenHeight = MediaQuery.of(context).size.height;
 
     return Scaffold(
       backgroundColor: Colors.grey.shade900,
       body: Stack(
         children: [
-          // layer 1 map background
           Positioned.fill(
-            child: Image.network(
-              'https://images.unsplash.com/photo-1524661135-423995f22d0b?q=80&w=800&auto=format&fit=crop',
-              fit: BoxFit.cover,
+            child: FlutterMap(
+              mapController: _mapController,
+              options: MapOptions(
+                initialCenter: widget.initialReport?.noiseLat != null 
+                    ? LatLng(widget.initialReport!.noiseLat!, widget.initialReport!.noiseLng!) 
+                    : _defaultLocation,
+                initialZoom: 13.0,
+                // Chặn xoay bản đồ để người dùng đỡ bị chóng mặt
+                interactionOptions: const InteractionOptions(flags: InteractiveFlag.all & ~InteractiveFlag.rotate), 
+              ),
+              children: [
+                TileLayer(
+                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  userAgentPackageName: 'com.paw_sos.app',
+                ),
+                CircleLayer(
+                  circles: _buildRadarCircles(),
+                ),
+              ],
             ),
           ),
 
-          // layer 1.5 Vùng nhiễu trên Map Cho phép chạm trực tiếp
-          if (_selectedReport == null) ...[
-             // Đang ở chế độ xem chung -> Hiển thị nhiều đốm đỏ
-            Positioned(
-              top: screenHeight * 0.4, left: MediaQuery.of(context).size.width * 0.2,
-              child: GestureDetector(
-                onTap: () => _openDetail(_nearbyReports[0]),
-                child: _buildNoiseMapCircle(),
-              ),
-            ),
-            if (_nearbyReports.length > 1)
-              Positioned(
-                top: screenHeight * 0.6, right: MediaQuery.of(context).size.width * 0.2,
-                child: GestureDetector(
-                  onTap: () => _openDetail(_nearbyReports[1]),
-                  child: _buildNoiseMapCircle(),
-                ),
-              ),
-          ] else ...[
-            // Đã chọn cụ thể 1 ca -> Vẽ duy nhất 1 điểm trung tâm
-            Positioned(
-              top: screenHeight * 0.3,
-              left: MediaQuery.of(context).size.width * 0.5 - 60, // Căn giữa
-              child: _buildNoiseMapCircle(),
-            ),
-          ],
-
-          // layer 2: app bar
           Positioned(
             top: 50, left: 16, right: 16,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                if (!widget.isMainTab) // Giấu nút Back nếu đang ở Bottom Tab
+                if (!widget.isMainTab) 
                   CircleAvatar(
                     backgroundColor: Colors.white.withOpacity(0.9),
                     child: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.black87), onPressed: () => Navigator.pop(context)),
                   )
                 else
-                  const SizedBox(width: 40), // Placeholder giữ khoảng cách cân bằng
+                  const SizedBox(width: 40),
 
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -143,33 +162,29 @@ class _RescueMapScreenState extends State<RescueMapScreen> {
             ),
           ),
 
-          // layer 3 radar panel (Danh sách gần đây)
-          // Dùng AnimatedPositioned để làm hiệu ứng trượt mượt mà
           AnimatedPositioned(
             duration: const Duration(milliseconds: 400),
             curve: Curves.fastOutSlowIn,
             left: 0, right: 0,
-            bottom: (_showRadarPanel && !_showDetailPanel) ? 0 : -screenHeight, // Bị giấu xuống đáy nếu tắt
+            bottom: (_showRadarPanel && !_showDetailPanel) ? 0 : -screenHeight,
             child: _buildRadarPanel(),
           ),
 
-          // layer 4: detail panel (Panel Xác Nhận)
           AnimatedPositioned(
             duration: const Duration(milliseconds: 400),
             curve: Curves.fastOutSlowIn,
             left: 0, right: 0,
-            bottom: _showDetailPanel ? 0 : -screenHeight, // Bật lên từ đáy
+            bottom: _showDetailPanel ? 0 : -screenHeight,
             child: _buildDetailPanel(),
           ),
 
-          // layer 5: floating button (Chỉ hiện khi đang ở Tab Radar và chưa bật Panel Detail)
           if (widget.isMainTab && !_showDetailPanel)
             Positioned(
               bottom: 24, right: 16,
               child: FloatingActionButton(
                 backgroundColor: Colors.white,
                 onPressed: () {
-                  setState(() => _showRadarPanel = !_showRadarPanel); // Bật tắt Panel
+                  setState(() => _showRadarPanel = !_showRadarPanel);
                 },
                 child: Icon(_showRadarPanel ? Icons.map : Icons.format_list_bulleted, color: const Color(0xFFF43F5E)),
               ),
@@ -179,25 +194,37 @@ class _RescueMapScreenState extends State<RescueMapScreen> {
     );
   }
 
-
-  Widget _buildNoiseMapCircle() {
-    return Container(
-      width: 120, height: 120,
-      decoration: BoxDecoration(
+  List<CircleMarker> _buildRadarCircles() {
+    List<CircleMarker> circles = [];
+    
+    // Nếu đang xem 1 ca cụ thể -> Vẽ 1 vùng to
+    if (_selectedReport != null && _selectedReport!.noiseLat != null) {
+      circles.add(CircleMarker(
+        point: LatLng(_selectedReport!.noiseLat!, _selectedReport!.noiseLng!),
         color: Colors.red.withOpacity(0.2),
-        shape: BoxShape.circle,
-        border: Border.all(color: Colors.red.withOpacity(0.5)),
-      ),
-      child: Center(
-        child: Container(
-          width: 40, height: 40,
-          decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 8)]),
-          child: const Icon(Icons.pets, color: Colors.white, size: 20),
-        ),
-      ),
-    );
+        borderStrokeWidth: 2,
+        borderColor: Colors.red.withOpacity(0.5),
+        radius: 150, // Bán kính hiển thị trên Map
+        useRadiusInMeter: true,
+      ));
+    } 
+    // Nếu chưa chọn ca nào -> Vẽ tất cả vùng nhiễu của các ca mở
+    else {
+      for (var report in _nearbyReports) {
+        if (report.noiseLat != null) {
+          circles.add(CircleMarker(
+            point: LatLng(report.noiseLat!, report.noiseLng!),
+            color: Colors.orange.withOpacity(0.3),
+            borderStrokeWidth: 1.5,
+            borderColor: Colors.orange.withOpacity(0.6),
+            radius: 500, // Bán kính 500m
+            useRadiusInMeter: true,
+          ));
+        }
+      }
+    }
+    return circles;
   }
-
 
   Widget _buildRadarPanel() {
     return Container(
@@ -236,7 +263,7 @@ class _RescueMapScreenState extends State<RescueMapScreen> {
               itemBuilder: (context, index) {
                 return RadarItemCard(
                   report: _nearbyReports[index],
-                  onTap: () => _openDetail(_nearbyReports[index]), 
+                  onTap: () => _openDetail(_nearbyReports[index]),
                 );
               },
             ),
@@ -247,7 +274,7 @@ class _RescueMapScreenState extends State<RescueMapScreen> {
   }
 
   Widget _buildDetailPanel() {
-     if (_selectedReport == null) return const SizedBox.shrink();
+    if (_selectedReport == null) return const SizedBox.shrink();
     
     return Container(
       height: MediaQuery.of(context).size.height * 0.65,
