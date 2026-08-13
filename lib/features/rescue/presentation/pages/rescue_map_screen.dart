@@ -1,12 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:paw_sos/features/report/data/models/AnimalReportModel.dart'; 
 import 'package:paw_sos/screen/card/radar_item_card.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import 'active_rescue_screen.dart'; 
+import 'package:paw_sos/features/report/data/models/AnimalReportModel.dart'; 
+import 'package:paw_sos/features/rescue/presentation/bloc/rescue_bloc.dart';
+import 'package:paw_sos/features/rescue/presentation/bloc/rescue_event.dart';
+import 'package:paw_sos/features/rescue/presentation/bloc/rescue_state.dart';
+import 'package:paw_sos/features/rescue/domain/usecases/get_ongoing_mission_usecase.dart';
 class RescueMapScreen extends StatefulWidget {
-  final AnimalReportModel? initialReport;
-  final bool isMainTab;
+  final AnimalReportModel? initialReport; 
+  final bool isMainTab; 
 
   const RescueMapScreen({super.key, this.initialReport, this.isMainTab = false});
 
@@ -15,23 +22,20 @@ class RescueMapScreen extends StatefulWidget {
 }
 
 class _RescueMapScreenState extends State<RescueMapScreen> with TickerProviderStateMixin {
-  final List<AnimalReportModel> _nearbyReports = AnimalReportModel.getMockData();
-  
-  // Điều khiển Bản đồ
   final MapController _mapController = MapController();
-  final LatLng _defaultLocation = const LatLng(10.762622, 106.660172); // Trung tâm TP.HCM
   
-  bool _showDetailPanel = false;
-  bool _showRadarPanel = false;
-  AnimalReportModel? _selectedReport;
-  bool _isClaiming = false;
+  bool _showDetailPanel = false; 
+  bool _showRadarPanel = true; 
+  AnimalReportModel? _selectedReport; 
 
   @override
   void initState() {
     super.initState();
+    context.read<RescueBloc>().add(LoadRadarReports());
+
     if (widget.initialReport != null) {
       _selectedReport = widget.initialReport;
-      _showDetailPanel = true;
+      _showDetailPanel = true; 
     } else {
       _showRadarPanel = !widget.isMainTab;
     }
@@ -42,64 +46,22 @@ class _RescueMapScreenState extends State<RescueMapScreen> with TickerProviderSt
       _selectedReport = report;
       _showDetailPanel = true;
     });
-
-    // Trượt bản đồ tới vùng nhiễu của ca này
+    
     if (report.noiseLat != null && report.noiseLng != null) {
-      _animatedMapMove(LatLng(report.noiseLat!, report.noiseLng!), 15.0);
+      _mapController.move(LatLng(report.noiseLat! - 0.005, report.noiseLng!), 14.5);
     }
   }
 
   void _closeDetail() {
     setState(() {
       _showDetailPanel = false;
-      Future.delayed(const Duration(milliseconds: 400), () {
-        if (mounted && !_showDetailPanel) {
-          setState(() => _selectedReport = null);
-        }
-      });
+      _selectedReport = null; 
     });
   }
 
-  void _animatedMapMove(LatLng destLocation, double destZoom) {
-    final latTween = Tween<double>(begin: _mapController.camera.center.latitude, end: destLocation.latitude);
-    final lngTween = Tween<double>(begin: _mapController.camera.center.longitude, end: destLocation.longitude);
-    final zoomTween = Tween<double>(begin: _mapController.camera.zoom, end: destZoom);
-
-    final controller = AnimationController(duration: const Duration(milliseconds: 500), vsync: this);
-    final Animation<double> animation = CurvedAnimation(parent: controller, curve: Curves.fastOutSlowIn);
-
-    controller.addListener(() {
-      _mapController.move(
-        LatLng(latTween.evaluate(animation), lngTween.evaluate(animation)),
-        zoomTween.evaluate(animation),
-      );
-    });
-
-    animation.addStatusListener((status) {
-      if (status == AnimationStatus.completed || status == AnimationStatus.dismissed) {
-        controller.dispose();
-      }
-    });
-    controller.forward();
-  }
-
-  void _handleClaimRescue() async {
-    setState(() => _isClaiming = true);
-    
-    // Mô phỏng call API Update Status lên Supabase
-    await Future.delayed(const Duration(milliseconds: 1500));
-    
-    if (mounted) {
-      setState(() {
-        _isClaiming = false;
-        _showDetailPanel = false; 
-      });
-      
-      Navigator.of(context, rootNavigator: true).push(
-        MaterialPageRoute(
-          builder: (context) => ActiveRescueScreen(mission: _selectedReport!),
-        ),
-      );
+  void _handleClaimRescue() {
+    if (_selectedReport != null) {
+      context.read<RescueBloc>().add(AcceptMission(_selectedReport!.id));
     }
   }
 
@@ -107,118 +69,192 @@ class _RescueMapScreenState extends State<RescueMapScreen> with TickerProviderSt
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
 
-    return Scaffold(
-      backgroundColor: Colors.grey.shade900,
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: FlutterMap(
-              mapController: _mapController,
-              options: MapOptions(
-                initialCenter: widget.initialReport?.noiseLat != null 
-                    ? LatLng(widget.initialReport!.noiseLat!, widget.initialReport!.noiseLng!) 
-                    : _defaultLocation,
-                initialZoom: 13.0,
-                // Chặn xoay bản đồ để người dùng đỡ bị chóng mặt
-                interactionOptions: const InteractionOptions(flags: InteractiveFlag.all & ~InteractiveFlag.rotate), 
+    return BlocConsumer<RescueBloc, RescueState>(
+      listener: (context, state) {
+        if (state is RescueMissionAccepted) {
+          // 1. Ẩn panel xác nhận
+          _closeDetail();
+          
+          // 2. Hiện POPUP Thông báo chốt Phase 2
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Đã nhận ca! Bắt đầu định tuyến...'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            )
+          );
+          
+          // 3. Delay 400ms để animation mượt rồi mới Push
+          final missionToRescue = _selectedReport;
+          if (missionToRescue != null) {
+            Future.delayed(const Duration(milliseconds: 400), () {
+              if (mounted) {
+                Navigator.of(context, rootNavigator: true).push(
+                  MaterialPageRoute(
+                    builder: (context) => ActiveRescueScreen(mission: missionToRescue),
+                  ),
+                ).then((_) {
+                  // Đi cứu về thì tải lại Radar
+                  context.read<RescueBloc>().add(LoadRadarReports());
+                });
+              }
+            });
+          }
+        } else if (state is RescueError) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.message), backgroundColor: Colors.red));
+        }
+      },
+      builder: (context, state) {
+        List<AnimalReportModel> nearbyReports = [];
+        AnimalReportModel? ongoingMission; 
+
+        if (state is RadarLoaded) {
+          nearbyReports = state.reports;
+          ongoingMission = state.ongoingMission; 
+        }
+
+        final isClaiming = state is RescueLoading && _selectedReport != null;
+        final isLoadingRadar = state is RescueLoading && _selectedReport == null;
+
+        return Scaffold(
+          backgroundColor: Colors.grey.shade900,
+          body: Stack(
+            children: [
+              Positioned.fill(
+                child: FlutterMap(
+                  mapController: _mapController,
+                  options: const MapOptions(
+                    initialCenter: LatLng(10.762622, 106.660172), 
+                    initialZoom: 13.0,
+                  ),
+                  children: [
+                    TileLayer(
+                      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      userAgentPackageName: 'com.paw_sos.app',
+                    ),
+                    CircleLayer(
+                      circles: _buildRadarCircles(nearbyReports),
+                    ),
+                  ],
+                ),
               ),
-              children: [
-                TileLayer(
-                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  userAgentPackageName: 'com.paw_sos.app',
-                ),
-                CircleLayer(
-                  circles: _buildRadarCircles(),
-                ),
-              ],
-            ),
-          ),
 
-          Positioned(
-            top: 50, left: 16, right: 16,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                if (!widget.isMainTab) 
-                  CircleAvatar(
-                    backgroundColor: Colors.white.withOpacity(0.9),
-                    child: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.black87), onPressed: () => Navigator.pop(context)),
-                  )
-                else
-                  const SizedBox(width: 40),
+              Positioned(
+                top: 50, left: 16, right: 16,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    if (!widget.isMainTab) 
+                      CircleAvatar(backgroundColor: Colors.white.withOpacity(0.9), child: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.black87), onPressed: () => Navigator.pop(context)))
+                    else
+                      const SizedBox(width: 40), 
 
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(color: Colors.white.withOpacity(0.95), borderRadius: BorderRadius.circular(20)),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.radar, color: Colors.blue, size: 16), SizedBox(width: 8),
-                      Text('Radar Paws SOS', style: TextStyle(fontWeight: FontWeight.bold)),
-                    ],
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(color: Colors.white.withOpacity(0.95), borderRadius: BorderRadius.circular(20), boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10)]),
+                      child: Row(
+                        children: [
+                          if (isLoadingRadar) 
+                             const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                          else
+                             const Icon(Icons.radar, color: Colors.blue, size: 16), 
+                          const SizedBox(width: 8),
+                          const Text('Radar Paws SOS', style: TextStyle(fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    ),
+                    CircleAvatar(backgroundColor: Colors.white.withOpacity(0.9), child: const Icon(Icons.filter_alt, color: Colors.black87)),
+                  ],
+                ),
+              ),
+
+              // THANH TRẠNG THÁI: NHIỆM VỤ ĐANG DANG DỞ (LIMBO STATE)
+              if (ongoingMission != null && !_showDetailPanel)
+                Positioned(
+                  top: 110, left: 16, right: 16,
+                  child: GestureDetector(
+                    onTap: () {
+                      Navigator.of(context, rootNavigator: true).push(
+                        MaterialPageRoute(
+                          builder: (context) => ActiveRescueScreen(mission: ongoingMission!),
+                        ),
+                      ).then((_) => context.read<RescueBloc>().add(LoadRadarReports()));
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade900,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, 4))],
+                      ),
+                      child: Row(
+                        children: [
+                          const SizedBox(
+                            width: 24, height: 24,
+                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('NHIỆM VỤ ĐANG THỰC HIỆN', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                                Text('Chạm để tiếp tục đi cứu ${ongoingMission.animalType}', style: const TextStyle(color: Colors.white70, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
+                              ],
+                            ),
+                          ),
+                          const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 16)
+                        ],
+                      ),
+                    ),
                   ),
                 ),
-                CircleAvatar(backgroundColor: Colors.white.withOpacity(0.9), child: const Icon(Icons.filter_alt, color: Colors.black87)),
-              ],
-            ),
-          ),
 
-          AnimatedPositioned(
-            duration: const Duration(milliseconds: 400),
-            curve: Curves.fastOutSlowIn,
-            left: 0, right: 0,
-            bottom: (_showRadarPanel && !_showDetailPanel) ? 0 : -screenHeight,
-            child: _buildRadarPanel(),
-          ),
-
-          AnimatedPositioned(
-            duration: const Duration(milliseconds: 400),
-            curve: Curves.fastOutSlowIn,
-            left: 0, right: 0,
-            bottom: _showDetailPanel ? 0 : -screenHeight,
-            child: _buildDetailPanel(),
-          ),
-
-          if (widget.isMainTab && !_showDetailPanel)
-            Positioned(
-              bottom: 24, right: 16,
-              child: FloatingActionButton(
-                backgroundColor: Colors.white,
-                onPressed: () {
-                  setState(() => _showRadarPanel = !_showRadarPanel);
-                },
-                child: Icon(_showRadarPanel ? Icons.map : Icons.format_list_bulleted, color: const Color(0xFFF43F5E)),
+              AnimatedPositioned(
+                duration: const Duration(milliseconds: 400),
+                curve: Curves.fastOutSlowIn,
+                left: 0, right: 0,
+                bottom: (_showRadarPanel && !_showDetailPanel) ? 0 : -screenHeight,
+                child: _buildRadarPanel(nearbyReports, isLoadingRadar),
               ),
-            )
-        ],
-      ),
+
+              AnimatedPositioned(
+                duration: const Duration(milliseconds: 400),
+                curve: Curves.fastOutSlowIn,
+                left: 0, right: 0,
+                bottom: _showDetailPanel ? 0 : -screenHeight,
+                child: _buildDetailPanel(isClaiming),
+              ),
+
+              if (widget.isMainTab && !_showDetailPanel)
+                Positioned(
+                  bottom: 24, right: 16,
+                  child: FloatingActionButton(
+                    backgroundColor: Colors.white,
+                    onPressed: () => setState(() => _showRadarPanel = !_showRadarPanel),
+                    child: Icon(_showRadarPanel ? Icons.map : Icons.format_list_bulleted, color: const Color(0xFFF43F5E)),
+                  ),
+                )
+            ],
+          ),
+        );
+      }
     );
   }
 
-  List<CircleMarker> _buildRadarCircles() {
+  List<CircleMarker> _buildRadarCircles(List<AnimalReportModel> nearbyReports) {
     List<CircleMarker> circles = [];
-    
-    // Nếu đang xem 1 ca cụ thể -> Vẽ 1 vùng to
     if (_selectedReport != null && _selectedReport!.noiseLat != null) {
       circles.add(CircleMarker(
         point: LatLng(_selectedReport!.noiseLat!, _selectedReport!.noiseLng!),
-        color: Colors.red.withOpacity(0.2),
-        borderStrokeWidth: 2,
-        borderColor: Colors.red.withOpacity(0.5),
-        radius: 150, // Bán kính hiển thị trên Map
-        useRadiusInMeter: true,
+        color: Colors.red.withOpacity(0.3), borderColor: Colors.red, borderStrokeWidth: 2, useRadiusInMeter: true, radius: 500, 
       ));
-    } 
-    // Nếu chưa chọn ca nào -> Vẽ tất cả vùng nhiễu của các ca mở
-    else {
-      for (var report in _nearbyReports) {
+    } else {
+      for (var report in nearbyReports) {
         if (report.noiseLat != null) {
           circles.add(CircleMarker(
             point: LatLng(report.noiseLat!, report.noiseLng!),
-            color: Colors.orange.withOpacity(0.3),
-            borderStrokeWidth: 1.5,
-            borderColor: Colors.orange.withOpacity(0.6),
-            radius: 500, // Bán kính 500m
-            useRadiusInMeter: true,
+            color: Colors.blue.withOpacity(0.15), borderColor: Colors.blue, borderStrokeWidth: 1, useRadiusInMeter: true, radius: 500,
           ));
         }
       }
@@ -226,14 +262,10 @@ class _RescueMapScreenState extends State<RescueMapScreen> with TickerProviderSt
     return circles;
   }
 
-  Widget _buildRadarPanel() {
+  Widget _buildRadarPanel(List<AnimalReportModel> reports, bool isLoading) {
     return Container(
       height: MediaQuery.of(context).size.height * 0.45,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 20, offset: Offset(0, -5))],
-      ),
+      decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(24)), boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 20, offset: Offset(0, -5))]),
       child: Column(
         children: [
           const SizedBox(height: 12),
@@ -247,42 +279,39 @@ class _RescueMapScreenState extends State<RescueMapScreen> with TickerProviderSt
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text('Gần bạn nhất', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                    Text('Quét thấy ${_nearbyReports.length} ca trong bán kính 5km', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                    Text('Quét thấy ${reports.length} ca trong bán kính 5km', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
                   ],
                 ),
-                TextButton.icon(
-                  onPressed: () {}, icon: const Icon(Icons.refresh, size: 16), label: const Text('Làm mới'),
-                )
+                TextButton.icon(onPressed: () => context.read<RescueBloc>().add(LoadRadarReports()), icon: const Icon(Icons.refresh, size: 16), label: const Text('Làm mới'))
               ],
             ),
           ),
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: _nearbyReports.length,
-              itemBuilder: (context, index) {
-                return RadarItemCard(
-                  report: _nearbyReports[index],
-                  onTap: () => _openDetail(_nearbyReports[index]),
-                );
-              },
-            ),
+            child: isLoading && reports.isEmpty 
+              ? const Center(child: CircularProgressIndicator()) 
+              : reports.isEmpty 
+                  ? const Center(child: Text("Xung quanh khu vực này hiện rất an bình 🐾", style: TextStyle(color: Colors.grey)))
+                  : ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: reports.length,
+                      itemBuilder: (context, index) {
+                        return RadarItemCard(
+                          report: reports[index],
+                          onTap: () => _openDetail(reports[index]),
+                        );
+                      },
+                    ),
           )
         ],
       ),
     );
   }
 
-  Widget _buildDetailPanel() {
+  Widget _buildDetailPanel(bool isClaiming) {
     if (_selectedReport == null) return const SizedBox.shrink();
-    
     return Container(
       height: MediaQuery.of(context).size.height * 0.65,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 30, offset: Offset(0, -10))],
-      ),
+      decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(24)), boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 30, offset: Offset(0, -10))]),
       child: Column(
         children: [
           Row(
@@ -298,80 +327,38 @@ class _RescueMapScreenState extends State<RescueMapScreen> with TickerProviderSt
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(color: Colors.red.shade50, border: Border.all(color: Colors.red.shade200), borderRadius: BorderRadius.circular(6)),
-                    child: Text('KHẨN CẤP (${_selectedReport!.status})', style: TextStyle(color: Colors.red.shade700, fontSize: 12, fontWeight: FontWeight.bold)),
-                  ),
+                  Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: Colors.red.shade50, border: Border.all(color: Colors.red.shade200), borderRadius: BorderRadius.circular(6)), child: Text('KHẨN CẤP (${_selectedReport!.status})', style: TextStyle(color: Colors.red.shade700, fontSize: 12, fontWeight: FontWeight.bold))),
                   const SizedBox(height: 8),
                   Text(_selectedReport!.title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
-                  
                   Stack(
                     children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: Image.network(_selectedReport!.imageUrl, width: double.infinity, height: 200, fit: BoxFit.cover),
-                      ),
+                      ClipRRect(borderRadius: BorderRadius.circular(16), child: Image.network(_selectedReport!.imageUrl, width: double.infinity, height: 200, fit: BoxFit.cover)),
                       Positioned(
                         bottom: 8, right: 8,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: Colors.black87, 
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.white24)
-                          ),
-                          child: const Row(
-                            children: [
-                              Icon(Icons.lock, color: Colors.yellow, size: 14),
-                              SizedBox(width: 6),
-                              Text('Tọa độ đang bảo mật', style: TextStyle(color: Colors.white, fontSize: 11)),
-                            ],
-                          ),
-                        ),
+                        child: Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.white24)), child: const Row(children: [Icon(Icons.lock, color: Colors.yellow, size: 14), SizedBox(width: 6), Text('Tọa độ đang bảo mật', style: TextStyle(color: Colors.white, fontSize: 11))])),
                       )
                     ],
                   ),
                   const SizedBox(height: 16),
-                  
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(color: Colors.orange.shade50, border: Border.all(color: Colors.orange.shade100), borderRadius: BorderRadius.circular(12)),
-                    child: RichText(
-                      text: TextSpan(
-                        style: const TextStyle(color: Colors.black87, fontSize: 14, height: 1.5),
-                        children: [
-                          TextSpan(text: 'Mô tả từ Reporter: ', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange.shade900)),
-                          TextSpan(text: _selectedReport!.description),
-                        ]
-                      ),
-                    ),
+                    child: RichText(text: TextSpan(style: const TextStyle(color: Colors.black87, fontSize: 14, height: 1.5), children: [TextSpan(text: 'Mô tả từ Reporter: ', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange.shade900)), TextSpan(text: _selectedReport!.description.isEmpty ? "Không có" : _selectedReport!.description)])),
                   ),
                   const SizedBox(height: 24),
-
                   Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
-                    child: Row(
-                      children: [
-                        Icon(Icons.info_outline, color: Colors.blue.shade400),
-                        const SizedBox(width: 12),
-                        const Expanded(child: Text('Nhấn Tiếp nhận, hệ thống sẽ mở khóa API RLS và gửi tọa độ GPS chính xác. Không nhận mà bỏ sẽ bị trừ điểm.', style: TextStyle(fontSize: 12, color: Colors.black54))),
-                      ],
-                    ),
+                    padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
+                    child: Row(children: [Icon(Icons.info_outline, color: Colors.blue.shade400), const SizedBox(width: 12), const Expanded(child: Text('Nhấn Tiếp nhận, hệ thống sẽ mở khóa API RLS và gửi tọa độ GPS chính xác. Không nhận mà bỏ sẽ bị trừ điểm.', style: TextStyle(fontSize: 12, color: Colors.black54)))]),
                   ),
                   const SizedBox(height: 16),
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
-                      onPressed: _isClaiming ? null : _handleClaimRescue,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red.shade500, padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                      icon: _isClaiming ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Icon(Icons.favorite, color: Colors.white),
-                      label: Text(_isClaiming ? 'Đang gọi Supabase...' : 'TÔI SẼ ĐI CỨU BÉ NÀY!', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                      onPressed: isClaiming ? null : _handleClaimRescue,
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.red.shade500, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                      icon: isClaiming ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Icon(Icons.favorite, color: Colors.white),
+                      label: Text(isClaiming ? 'Đang gọi Supabase...' : 'TÔI SẼ ĐI CỨU BÉ NÀY!', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
                     ),
                   )
                 ],

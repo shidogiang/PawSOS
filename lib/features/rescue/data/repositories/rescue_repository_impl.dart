@@ -18,4 +18,9 @@ class RescueRepositoryImpl implements RescueRepository {
     // Gọi xuống DataSource
     return await remoteDataSource.acceptMission(reportId);
   }
+
+  @override
+  Future<AnimalReportModel?> getOngoingMission() async {
+    return await remoteDataSource.getOngoingMission();
+  }
 }

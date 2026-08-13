@@ -14,6 +14,7 @@ import 'package:paw_sos/features/rescue/data/repositories/rescue_repository_impl
 import 'package:paw_sos/features/rescue/domain/usecases/get_radar_reports_usecase.dart';
 import 'package:paw_sos/features/rescue/domain/usecases/accept_mission_usecase.dart';
 import 'package:paw_sos/features/rescue/presentation/bloc/rescue_bloc.dart';
+import 'package:paw_sos/features/rescue/domain/usecases/get_ongoing_mission_usecase.dart';
 void main()  async {
   WidgetsFlutterBinding.ensureInitialized();
   try{
@@ -37,7 +38,9 @@ void main()  async {
  // khởi tạo data source và repository cho RescueBloc
   final rescueRemoteDataSource = RescueRemoteDataSourceImpl(supabaseClient);
   final rescueRepository = RescueRepositoryImpl(rescueRemoteDataSource);
-
+  final getRadarReportsUseCase = GetRadarReportsUseCase(rescueRepository);
+  final acceptMissionUseCase = AcceptMissionUseCase(rescueRepository);
+  final checkOngoingMissionUseCase = CheckOngoingMissionUseCase(rescueRepository);
   runApp(MultiBlocProvider(
     providers:[
       BlocProvider(
@@ -48,8 +51,9 @@ void main()  async {
       ),
       BlocProvider(
         create: (context) => RescueBloc(
-          getRadarReportsUseCase: GetRadarReportsUseCase(rescueRepository),
-          acceptMissionUseCase: AcceptMissionUseCase(rescueRepository),
+          getRadarReportsUseCase: getRadarReportsUseCase,
+          acceptMissionUseCase: acceptMissionUseCase,
+          checkOngoingMissionUseCase: checkOngoingMissionUseCase,
         ),
       ),
     ],

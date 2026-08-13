@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:paw_sos/features/report/data/models/AnimalReportModel.dart'; 
 class SOSItemCard extends StatelessWidget {
-  final AnimalReportModel report; 
+  final AnimalReportModel report; // Thay thế 4 biến String bằng 1 biến Model duy nhất
   final VoidCallback? onTap;
 
   const SOSItemCard({
@@ -31,6 +31,7 @@ class SOSItemCard extends StatelessWidget {
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min, // Giúp Column không chiếm khoảng trống thừa
           children: [
             Container(
               height: 80,
@@ -38,7 +39,7 @@ class SOSItemCard extends StatelessWidget {
                 color: Colors.grey.shade300,
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
                 image: DecorationImage(
-                  image: NetworkImage(report.imageUrl), // Ảnh
+                  image: NetworkImage(report.imageUrl), // Lấy ảnh từ Model
                   fit: BoxFit.cover,
                 ),
               ),
@@ -47,9 +48,10 @@ class SOSItemCard extends StatelessWidget {
               padding: const EdgeInsets.all(8.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min, // Giúp chống tràn Bottom 6.0 pixels
                 children: [
                   Text(
-                    report.distance, //  khoảng cách  
+                    report.distance, // Lấy khoảng cách từ Model
                     style: const TextStyle(
                       fontSize: 12, 
                       fontWeight: FontWeight.bold, 
@@ -58,14 +60,14 @@ class SOSItemCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    report.title, //  tiêu đề 
+                    report.title, // Lấy tiêu đề từ Model
                     style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    report.timeAgo, //  thời gian 
+                    report.timeAgo, // Lấy thời gian từ Model
                     style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
                   ),
                 ],

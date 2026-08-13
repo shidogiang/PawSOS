@@ -15,9 +15,11 @@ dependencies:
   geolocator: ^14.0.3
   get_it: ^9.2.1
   google_maps_flutter: ^2.18.0
+  http: ^1.6.0
   image_picker: ^1.2.3
   latlong2: ^0.10.1
   supabase_flutter: ^2.17.1
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:

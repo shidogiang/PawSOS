@@ -10,9 +10,10 @@ class RescueLoading extends RescueState {}
 
 class RadarLoaded extends RescueState {
   final List<AnimalReportModel> reports;
-  RadarLoaded(this.reports);
+  final AnimalReportModel? ongoingMission;
+  RadarLoaded({required this.reports, this.ongoingMission});
   @override
-  List<Object?> get props => [reports];
+  List<Object?> get props => [reports, ongoingMission];
 }
 
 class RescueMissionAccepted extends RescueState {}
