@@ -15,6 +15,8 @@ import 'package:paw_sos/features/rescue/domain/usecases/get_radar_reports_usecas
 import 'package:paw_sos/features/rescue/domain/usecases/accept_mission_usecase.dart';
 import 'package:paw_sos/features/rescue/presentation/bloc/rescue_bloc.dart';
 import 'package:paw_sos/features/rescue/domain/usecases/get_ongoing_mission_usecase.dart';
+import 'package:paw_sos/features/rescue/domain/usecases/complete_mission_usecase.dart';
+
 void main()  async {
   WidgetsFlutterBinding.ensureInitialized();
   try{
@@ -41,6 +43,8 @@ void main()  async {
   final getRadarReportsUseCase = GetRadarReportsUseCase(rescueRepository);
   final acceptMissionUseCase = AcceptMissionUseCase(rescueRepository);
   final checkOngoingMissionUseCase = CheckOngoingMissionUseCase(rescueRepository);
+  final completeMissionUseCase = CompleteMissionUseCase(rescueRepository);
+  
   runApp(MultiBlocProvider(
     providers:[
       BlocProvider(
@@ -54,6 +58,7 @@ void main()  async {
           getRadarReportsUseCase: getRadarReportsUseCase,
           acceptMissionUseCase: acceptMissionUseCase,
           checkOngoingMissionUseCase: checkOngoingMissionUseCase,
+          completeMissionUseCase: completeMissionUseCase
         ),
       ),
     ],

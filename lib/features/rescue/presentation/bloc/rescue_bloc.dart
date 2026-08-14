@@ -6,15 +6,19 @@ import 'package:paw_sos/features/report/data/models/AnimalReportModel.dart';
 import 'package:paw_sos/features/rescue/domain/usecases/get_radar_reports_usecase.dart';
 import 'package:paw_sos/features/rescue/domain/usecases/accept_mission_usecase.dart';
 import 'package:paw_sos/features/rescue/domain/usecases/get_ongoing_mission_usecase.dart';
+import 'package:paw_sos/features/rescue/domain/usecases/complete_mission_usecase.dart';
+
 class RescueBloc extends Bloc<RescueEvent, RescueState> {
   // BLoC CHỈ GIAO TIẾP VỚI USECASE
   final GetRadarReportsUseCase getRadarReportsUseCase;
   final AcceptMissionUseCase acceptMissionUseCase;
   final CheckOngoingMissionUseCase checkOngoingMissionUseCase;
+  final CompleteMissionUseCase completeMissionUseCase;
   RescueBloc({
     required this.getRadarReportsUseCase,
     required this.acceptMissionUseCase,
     required this.checkOngoingMissionUseCase,
+    required this.completeMissionUseCase,
   }) : super(RescueInitial()) {
     
     // Xử lý kéo dữ liệu Radar
@@ -51,5 +55,23 @@ class RescueBloc extends Bloc<RescueEvent, RescueState> {
         emit(RescueError(e.toString()));
       }
     });
+
+    // Xử lý Hoàn thành ca cứu hộ
+    // LUỒNG HOÀN TẤT NHIỆM VỤ
+    on<CompleteMission>((event, emit) async {
+      emit(RescueLoading());
+      try {
+        final success = await completeMissionUseCase.call(
+            event.reportId, event.imageFile, event.resultStatus, event.note);
+        if (success) {
+          emit(RescueMissionCompleted());
+        } else {
+          emit(RescueError("Không thể hoàn tất nhiệm vụ, vui lòng thử lại!"));
+        }
+      } catch (e) {
+        emit(RescueError(e.toString()));
+      }
+    });
+    
   }
 }

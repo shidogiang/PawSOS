@@ -11,6 +11,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../report/data/models/AnimalReportModel.dart';
 import 'package:paw_sos/screen/main_function/contact/chat_screen.dart';
 import 'package:paw_sos/screen/main_function/contact/call_screen.dart';
+import 'rescue_confirmation_screen.dart';
 class ActiveRescueScreen extends StatefulWidget {
   final AnimalReportModel mission;
 
@@ -298,7 +299,13 @@ class _ActiveRescueScreenState extends State<ActiveRescueScreen> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: ElevatedButton.icon(
-                            onPressed: () {}, icon: const Icon(Icons.camera_alt), label: const Text('Đã tới nơi'),
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => RescueConfirmationScreen(mission: widget.mission)),
+                              );
+                            }, 
+                            icon: const Icon(Icons.camera_alt), label: const Text('Đã tới nơi'),
                             style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade600, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 16)),
                           )
                         ),

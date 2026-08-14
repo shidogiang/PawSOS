@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:image_picker/image_picker.dart'; 
 import 'package:geolocator/geolocator.dart'; 
 import 'package:flutter_bloc/flutter_bloc.dart';
+
+import 'package:paw_sos/utils/imageCompressHelper.dart';
 import 'package:paw_sos/features/report/presentation/bloc/report_bloc.dart'; 
 import 'package:paw_sos/features/report/presentation/bloc/report_event.dart';
 import 'package:paw_sos/features/report/presentation/bloc/report_state.dart';
@@ -113,16 +115,18 @@ class _ReportEmergencyScreenState extends State<ReportEmergencyScreen> with Sing
   // HÀM 2: MỞ CAMERA VÀ CHỤP ẢNH
   Future<void> _openCamera() async {
     try {
-      // Gọi Camera API, ép nén ảnh xuống còn 50% chất lượng để tiết kiệm 3G
       final XFile? photo = await _picker.pickImage(
         source: ImageSource.camera,
-        imageQuality: 50, 
-        maxWidth: 1080,
+        imageQuality: 100, 
       );
 
       if (photo != null) {
+        File originalFile = File(photo.path);
+        
+        File? compressedFile = await ImageCompressHelper.compressImage(originalFile);
+
         setState(() {
-          _photoFile = File(photo.path);
+          _photoFile = compressedFile ?? originalFile;
           _hasPhoto = true;
         });
       }

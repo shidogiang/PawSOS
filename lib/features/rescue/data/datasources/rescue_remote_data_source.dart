@@ -5,6 +5,12 @@ abstract class RescueRemoteDataSource {
   Future<List<AnimalReportModel>> getRadarReports();
   Future<bool> acceptMission(String reportId);
   Future<AnimalReportModel?> getOngoingMission();
+  Future<bool> completeMission({
+    required String reportId,
+    required dynamic imageFile, // Dùng dynamic hoặc File đều được
+    required String resultStatus,
+    required String note,
+  });
 }
 
 class RescueRemoteDataSourceImpl implements RescueRemoteDataSource {
@@ -67,6 +73,38 @@ class RescueRemoteDataSourceImpl implements RescueRemoteDataSource {
     } catch (e) {
       print("🔥 [DEBUG] Lỗi kéo ca dang dở: $e");
       return null;
+    }
+  }
+   @override
+  Future<bool> completeMission({
+    required String reportId,
+    required dynamic imageFile, // Dùng dynamic hoặc File đều được
+    required String resultStatus,
+    required String note,
+  }) async {
+    try {
+      // 1. Upload ảnh lên Supabase Storage
+      final fileExt = imageFile.path.split('.').last;
+      final fileName = '${DateTime.now().millisecondsSinceEpoch}_$reportId.$fileExt';
+      
+      await supabaseClient.storage
+          .from('rescue_images')
+          .upload('confirmations/$fileName', imageFile);
+
+      // Lấy Link ảnh public
+      final imageUrl = supabaseClient.storage.from('rescue_images').getPublicUrl('confirmations/$fileName');
+
+      // 2. Gọi hàm RPC để chốt DB và cộng điểm
+      final response = await supabaseClient.rpc('complete_rescue_mission', params: {
+        'p_report_id': reportId,
+        'p_image_url': imageUrl,
+        'p_result': resultStatus,
+        'p_note': note
+      });
+      return response as bool;
+    } catch (e) {
+      print('🔥 [DEBUG] Lỗi Complete Mission: $e');
+      throw Exception('Lỗi hệ thống khi hoàn tất: $e');
     }
   }
 }

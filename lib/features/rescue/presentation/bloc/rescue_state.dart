@@ -1,5 +1,8 @@
 import 'package:equatable/equatable.dart';
 import 'package:paw_sos/features/report/data/models/AnimalReportModel.dart';
+import 'package:paw_sos/features/rescue/domain/usecases/get_radar_reports_usecase.dart';
+import '../../domain/usecases/complete_mission_usecase.dart'; // THÊM IMPORT
+
 abstract class RescueState extends Equatable {
   @override
   List<Object?> get props => [];
@@ -24,3 +27,5 @@ class RescueError extends RescueState {
   @override
   List<Object?> get props => [message];
 }
+class RescueMissionCompleted extends RescueState {} // THÊM STATE NÀY
+

@@ -23,4 +23,14 @@ class RescueRepositoryImpl implements RescueRepository {
   Future<AnimalReportModel?> getOngoingMission() async {
     return await remoteDataSource.getOngoingMission();
   }
+
+  @override
+  Future<bool> completeMission(String reportId, dynamic photoFile, String resultStatus, String note) async {
+    return await remoteDataSource.completeMission(
+      reportId: reportId,
+      imageFile: photoFile,
+      resultStatus: resultStatus,
+      note: note
+    );
+  }
 }
