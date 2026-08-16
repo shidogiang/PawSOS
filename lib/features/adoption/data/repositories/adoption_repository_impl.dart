@@ -15,4 +15,9 @@ class AdoptionRepositoryImpl implements AdoptionRepository {
   Future<bool> submitWeeklyImage(String trackingId, int week, dynamic imageFile) async {
     return await remoteDataSource.submitWeeklyImage(trackingId: trackingId, week: week, imageFile: imageFile);
   }
+
+  @override
+  Future<Map<String, int>> getActivityStats() async {
+    return await remoteDataSource.getActivityStats();
+  }
 }

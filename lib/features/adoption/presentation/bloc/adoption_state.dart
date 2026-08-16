@@ -11,9 +11,12 @@ class AdoptionLoading extends AdoptionState {}
 
 class AdoptionLoaded extends AdoptionState {
   final List<AdoptionTrackingModel> trackings;
-  AdoptionLoaded(this.trackings);
+  final int rescuedCount;   // THÊM BIẾN NÀY
+  final int reportedCount; 
+  AdoptionLoaded({
+     required this.trackings,  required this.rescuedCount,  required this.reportedCount});
   @override
-  List<Object?> get props => [trackings];
+  List<Object?> get props => [trackings, rescuedCount, reportedCount];
 }
 
 class AdoptionPhotoSubmitted extends AdoptionState {

@@ -22,6 +22,7 @@ import 'features/adoption/data/repositories/adoption_repository_impl.dart';
 import 'features/adoption/domain/usecases/get_my_tracking_usecase.dart';
 import 'features/adoption/domain/usecases/submit_weekly_usecase.dart';
 import 'features/adoption/presentation/bloc/adoption_bloc.dart';
+import 'features/adoption/domain/usecases/get_activity_stats_usecase.dart';
 void main()  async {
   WidgetsFlutterBinding.ensureInitialized();
   try{
@@ -54,6 +55,7 @@ void main()  async {
   final adoptionRepository = AdoptionRepositoryImpl(adoptionRemoteDataSource);
   final getMyTrackingsUseCase = GetMyTrackingsUseCase(adoptionRepository);
   final submitWeeklyImageUseCase = SubmitWeeklyImageUseCase(adoptionRepository);
+  final getActivityStatsUseCase = GetActivityStatsUseCase(adoptionRepository);
   runApp(MultiBlocProvider(
     providers:[
       BlocProvider(
@@ -74,6 +76,7 @@ void main()  async {
         create: (context) => AdoptionBloc(
           getMyTrackingsUseCase: getMyTrackingsUseCase,
           submitWeeklyImageUseCase: submitWeeklyImageUseCase,
+          getActivityStatsUseCase: getActivityStatsUseCase,
         ),
       ),
     ],

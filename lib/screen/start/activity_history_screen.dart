@@ -39,21 +39,34 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
             preferredSize: const Size.fromHeight(130),
             child: Column(
               children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                  child: Row(
-                    children: [
-                      _buildStatCard(
-                        icon: Icons.volunteer_activism, iconColor: Colors.green.shade600, bgColor: Colors.green.shade50,
-                        label: 'Đã cứu', value: '12', unit: 'bé',
+                // BỌC BLOC BUILDER QUANH CÁI ROW THỐNG KÊ
+                BlocBuilder<AdoptionBloc, AdoptionState>(
+                  builder: (context, state) {
+                    int rescued = 0;
+                    int reported = 0;
+                    
+                    if (state is AdoptionLoaded) {
+                      rescued = state.rescuedCount;
+                      reported = state.reportedCount;
+                    }
+
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                      child: Row(
+                        children: [
+                          _buildStatCard(
+                            icon: Icons.volunteer_activism, iconColor: Colors.green.shade600, bgColor: Colors.green.shade50,
+                            label: 'Đã cứu', value: rescued.toString(), unit: 'bé',
+                          ),
+                          const SizedBox(width: 12),
+                          _buildStatCard(
+                            icon: Icons.campaign, iconColor: Colors.blue.shade600, bgColor: Colors.blue.shade50,
+                            label: 'Báo cáo', value: reported.toString(), unit: 'ca',
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 12),
-                      _buildStatCard(
-                        icon: Icons.campaign, iconColor: Colors.blue.shade600, bgColor: Colors.blue.shade50,
-                        label: 'Báo cáo', value: '5', unit: 'ca',
-                      ),
-                    ],
-                  ),
+                    );
+                  },
                 ),
                 TabBar(
                   labelColor: Colors.red.shade500,

@@ -3,6 +3,8 @@ import '../models/AdoptionTrackingModel.dart';
 abstract class AdoptionRemoteDataSource {
   Future<List<AdoptionTrackingModel>> getMyTrackings();
   Future<bool> submitWeeklyImage({required String trackingId, required int week, required dynamic imageFile});
+  Future<Map<String, int>> getActivityStats(); // THÊM HÀM NÀY
+
 }
 
 class AdoptionRemoteDataSourceImpl implements AdoptionRemoteDataSource {
@@ -62,6 +64,27 @@ class AdoptionRemoteDataSourceImpl implements AdoptionRemoteDataSource {
     } catch (e) {
       print('🔥 [DEBUG] Lỗi Upload Ảnh Tracking: $e');
       throw Exception('Lỗi nộp ảnh tuần $week: $e');
+    }
+  }
+  @override
+  Future<Map<String, int>> getActivityStats() async {
+    final userId = supabaseClient.auth.currentUser?.id;
+    if (userId == null) return {'rescued': 0, 'reported': 0};
+
+    try {
+      // Đếm số ca đã cứu thành công (RESOLVED)
+      final rescued = await supabaseClient.from('animal_reports').select('id').eq('rescuer_id', userId).eq('status', 'RESOLVED');
+      
+      // Đếm số ca đã báo cáo (Mọi status)
+      final reported = await supabaseClient.from('animal_reports').select('id').eq('reporter_id', userId);
+
+      return {
+        'rescued': (rescued as List).length,
+        'reported': (reported as List).length,
+      };
+    } catch (e) {
+      print('🔥 [DEBUG] Lỗi lấy thống kê: $e');
+      return {'rescued': 0, 'reported': 0};
     }
   }
 }
