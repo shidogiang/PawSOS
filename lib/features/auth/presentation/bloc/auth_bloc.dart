@@ -47,12 +47,16 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     AuthLogoutRequested event,
     Emitter<AuthState> emit,
   ) async {
-    emit(AuthLoading());
-    try {
-      await authRepository.logout();
-      emit(AuthInitial());
-    } catch (e) {
-      emit(AuthFailure(e.toString().replaceAll('Exception: ', '')));
-    }
+    emit(AuthLoading()); // Báo UI hiện loading (nếu cần)
+      try {
+        // 1. Gọi Repo để xóa Session trên Supabase
+        await authRepository.logout();
+        
+        // 2. Xóa xong thì phát tín hiệu báo VÔ GIA CƯ (Chưa đăng nhập)
+        emit(AuthUnauthenticated());
+      } catch (e) {
+        emit(AuthFailure("Lỗi đăng xuất: $e"));
+      }
   }
+  
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:paw_sos/screen/start/main_tab_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -16,7 +17,11 @@ import 'package:paw_sos/features/rescue/domain/usecases/accept_mission_usecase.d
 import 'package:paw_sos/features/rescue/presentation/bloc/rescue_bloc.dart';
 import 'package:paw_sos/features/rescue/domain/usecases/get_ongoing_mission_usecase.dart';
 import 'package:paw_sos/features/rescue/domain/usecases/complete_mission_usecase.dart';
-
+import 'features/adoption/data/datasources/adoption_remote_datasouce.dart';
+import 'features/adoption/data/repositories/adoption_repository_impl.dart';
+import 'features/adoption/domain/usecases/get_my_tracking_usecase.dart';
+import 'features/adoption/domain/usecases/submit_weekly_usecase.dart';
+import 'features/adoption/presentation/bloc/adoption_bloc.dart';
 void main()  async {
   WidgetsFlutterBinding.ensureInitialized();
   try{
@@ -44,7 +49,11 @@ void main()  async {
   final acceptMissionUseCase = AcceptMissionUseCase(rescueRepository);
   final checkOngoingMissionUseCase = CheckOngoingMissionUseCase(rescueRepository);
   final completeMissionUseCase = CompleteMissionUseCase(rescueRepository);
-  
+  // khởi tạo data source và repository cho AdoptionBloc
+  final adoptionRemoteDataSource = AdoptionRemoteDataSourceImpl(supabaseClient);
+  final adoptionRepository = AdoptionRepositoryImpl(adoptionRemoteDataSource);
+  final getMyTrackingsUseCase = GetMyTrackingsUseCase(adoptionRepository);
+  final submitWeeklyImageUseCase = SubmitWeeklyImageUseCase(adoptionRepository);
   runApp(MultiBlocProvider(
     providers:[
       BlocProvider(
@@ -59,6 +68,12 @@ void main()  async {
           acceptMissionUseCase: acceptMissionUseCase,
           checkOngoingMissionUseCase: checkOngoingMissionUseCase,
           completeMissionUseCase: completeMissionUseCase
+        ),
+      ),
+      BlocProvider(
+        create: (context) => AdoptionBloc(
+          getMyTrackingsUseCase: getMyTrackingsUseCase,
+          submitWeeklyImageUseCase: submitWeeklyImageUseCase,
         ),
       ),
     ],
@@ -115,7 +130,9 @@ class PawsSOSApp extends StatelessWidget {
         ),
       ),
       // ROUTING LOGIC 
-      home: const LoginScreen(),
+      home: Supabase.instance.client.auth.currentSession != null 
+        ? const MainTabScreen() 
+        : const LoginScreen(),
     
     );
   }

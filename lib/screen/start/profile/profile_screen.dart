@@ -4,23 +4,29 @@ import 'package:paw_sos/screen/start/profile/kyc_screen.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../features/auth/presentation/bloc/auth_bloc.dart';
 import '../../../features/auth/presentation/bloc/auth_event.dart';
+import '../../../features/auth/presentation/bloc/auth_state.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
   void _handleLogout(BuildContext context) {
     context.read<AuthBloc>().add(AuthLogoutRequested());
-    
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-      (route) => false, // Xóa toàn bộ stack cũ
-    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return BlocListener<AuthBloc, AuthState>(
+      listener: (context, state) {
+        if (state is AuthUnauthenticated) {
+          // Khi đăng xuất thành công, điều hướng về màn hình đăng nhập
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (_) => const LoginScreen()),
+            (route) => false,
+          );
+        }
+      },
+    child: Scaffold(
       backgroundColor: Colors.grey.shade100,
       body: CustomScrollView(
         slivers: [
@@ -249,6 +255,7 @@ class ProfileScreen extends StatelessWidget {
             ),
           )
         ],
+       )
       ),
     );
   }

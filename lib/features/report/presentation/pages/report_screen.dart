@@ -5,7 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart'; 
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import 'package:paw_sos/utils/imageCompressHelper.dart';
+import 'package:paw_sos/core/utils/imageCompressHelper.dart';
 import 'package:paw_sos/features/report/presentation/bloc/report_bloc.dart'; 
 import 'package:paw_sos/features/report/presentation/bloc/report_event.dart';
 import 'package:paw_sos/features/report/presentation/bloc/report_state.dart';

@@ -33,3 +33,5 @@ class AuthFailure extends AuthState {
   @override
   List<Object?> get props => [message];
 }
+//Chưa đăng nhập đã đăng xuất
+class AuthUnauthenticated extends AuthState {} 

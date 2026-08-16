@@ -1,13 +1,33 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
+import 'dart:async';
 
-class ActivityHistoryScreen extends StatelessWidget {
+import 'package:paw_sos/features/adoption/data/models/AdoptionTrackingModel.dart';
+import 'package:paw_sos/features/adoption/presentation/bloc/adoption_bloc.dart';
+import 'package:paw_sos/features/adoption/presentation/bloc/adoption_event.dart';
+import 'package:paw_sos/features/adoption/presentation/bloc/adoption_state.dart';
+import 'package:paw_sos/core/utils/imageCompressHelper.dart';
+
+class ActivityHistoryScreen extends StatefulWidget {
   const ActivityHistoryScreen({super.key});
 
   @override
+  State<ActivityHistoryScreen> createState() => _ActivityHistoryScreenState();
+}
+
+class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
+  @override
+  void initState() {
+    super.initState();
+    context.read<AdoptionBloc>().add(LoadMyTrackings());
+  }
+
+  @override
   Widget build(BuildContext context) {
-    // Sử dụng DefaultTabController để quản lý state của 2 Tab
     return DefaultTabController(
-      length: 2, // Có 2 tab
+      length: 2, 
       child: Scaffold(
         backgroundColor: Colors.grey.shade100,
         appBar: AppBar(
@@ -16,10 +36,9 @@ class ActivityHistoryScreen extends StatelessWidget {
           scrolledUnderElevation: 0,
           title: const Text('Hoạt động', style: TextStyle(color: Colors.black87, fontSize: 22, fontWeight: FontWeight.bold)),
           bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(130), // Chiều cao cho cụm Thống kê + TabBar
+            preferredSize: const Size.fromHeight(130),
             child: Column(
               children: [
-                // 1. Thống kê nhanh
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                   child: Row(
@@ -36,8 +55,6 @@ class ActivityHistoryScreen extends StatelessWidget {
                     ],
                   ),
                 ),
-                
-                // 2. Thanh Tabs 
                 TabBar(
                   labelColor: Colors.red.shade500,
                   unselectedLabelColor: Colors.grey.shade500,
@@ -53,8 +70,6 @@ class ActivityHistoryScreen extends StatelessWidget {
             ),
           ),
         ),
-        
-        // 3. Nội dung cuộn của 2 Tabs
         body: TabBarView(
           children: [
             _buildRescueTasksTab(), 
@@ -65,7 +80,6 @@ class ActivityHistoryScreen extends StatelessWidget {
     );
   }
 
-  // Helper: Dựng thẻ Thống kê
   Widget _buildStatCard({required IconData icon, required Color iconColor, required Color bgColor, required String label, required String value, required String unit}) {
     return Expanded(
       child: Container(
@@ -95,257 +109,82 @@ class ActivityHistoryScreen extends StatelessWidget {
     );
   }
 
-  // TAB 1: Rescuer Flow
   Widget _buildRescueTasksTab() {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        // Card 1: Nhiệm vụ đang thực hiện
-        Container(
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: const Border(left: BorderSide(color: Colors.blue, width: 4)), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)]),
-          child: Stack(
-            children: [
-              Positioned(
-                top: 0, right: 0,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: const BorderRadius.only(topRight: Radius.circular(16), bottomLeft: Radius.circular(12))),
-                  child: Row(
-                    children: [
-                      SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.blue.shade700)),
-                      const SizedBox(width: 6),
-                      Text('ĐANG ĐI CỨU', style: TextStyle(color: Colors.blue.shade700, fontSize: 10, fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.network('https://images.unsplash.com/photo-1543466835-00a7907e9de1?q=80&w=200&auto=format&fit=crop', width: 60, height: 60, fit: BoxFit.cover)),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text('Chó cỏ - Bị xe đụng', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                              const SizedBox(height: 4),
-                              Row(children: [Icon(Icons.location_on, size: 12, color: Colors.grey.shade400), const SizedBox(width: 4), Text('Đường Nguyễn Văn Linh, Q.7', style: TextStyle(fontSize: 12, color: Colors.grey.shade600))])
-                            ],
-                          ),
-                        )
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: () {}, icon: const Icon(Icons.arrow_forward), label: const Text('Tiếp tục chỉ đường'),
-                        style: OutlinedButton.styleFrom(foregroundColor: Colors.blue, side: BorderSide(color: Colors.blue.shade200), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                      ),
-                    )
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-
-        // Card 2: Quy trình Tracking Nhận nuôi 4 tuần
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: const Border(left: BorderSide(color: Colors.purple, width: 4)), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)]),
-          child: Column(
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(color: Colors.purple.shade50, borderRadius: BorderRadius.circular(4)),
-                    child: Row(children: [Icon(Icons.home, size: 12, color: Colors.purple.shade700), const SizedBox(width: 4), Text('ĐANG THEO DÕI', style: TextStyle(color: Colors.purple.shade700, fontSize: 10, fontWeight: FontWeight.bold))]),
-                  ),
-                  Text('Tuần 2 / 4', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.purple.shade600))
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  CircleAvatar(radius: 24, backgroundImage: const NetworkImage('https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?q=80&w=200&auto=format&fit=crop'), backgroundColor: Colors.grey.shade200),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Mèo mướp (Bé Bánh Bao)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                        Text('Nhận nuôi ngày 15/07', style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
-                      ],
-                    ),
-                  )
-                ],
-              ),
-              const SizedBox(height: 16),
-              // Thanh tiến độ 4 tuần
-              Row(
-                children: [
-                  _buildProgressDot(isActive: true, isCompleted: true, label: '1'), _buildProgressLine(isActive: true),
-                  _buildProgressDot(isActive: true, isCompleted: false, label: '2', isPulsing: true), _buildProgressLine(isActive: false),
-                  _buildProgressDot(isActive: false, isCompleted: false, label: '3'), _buildProgressLine(isActive: false),
-                  _buildProgressDot(isActive: false, isCompleted: false, label: '4'),
-                ],
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () {}, icon: const Icon(Icons.camera_alt), label: const Text('Nộp ảnh tuần 2'),
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.purple.shade500, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                ),
-              )
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-
-        // Card 3: Nhiệm vụ hoàn thành
-        Opacity(
-          opacity: 0.7,
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.grey.shade200)),
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(color: Colors.green.shade50, borderRadius: BorderRadius.circular(4)),
-                      child: Row(children: [Icon(Icons.check, size: 12, color: Colors.green.shade700), const SizedBox(width: 4), Text('ĐÃ HOÀN THÀNH', style: TextStyle(color: Colors.green.shade700, fontSize: 10, fontWeight: FontWeight.bold))]),
-                    ),
-                    Text('10/07/2026', style: TextStyle(fontSize: 12, color: Colors.grey.shade500))
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    ColorFiltered(
-                      colorFilter: const ColorFilter.matrix([0.2126, 0.7152, 0.0722, 0, 0, 0.2126, 0.7152, 0.0722, 0, 0, 0.2126, 0.7152, 0.0722, 0, 0, 0, 0, 0, 1, 0]),
-                      child: ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.network('https://images.unsplash.com/photo-1543852786-1cf6624b9987?q=80&w=200&auto=format&fit=crop', width: 48, height: 48, fit: BoxFit.cover)),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
+    return RefreshIndicator(
+      onRefresh: () async {
+        context.read<AdoptionBloc>().add(LoadMyTrackings());
+      },
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          // 2. TÍCH HỢP BLOC: QUY TRÌNH TRACKING 4 TUẦN (Dynamic UI)
+          BlocConsumer<AdoptionBloc, AdoptionState>(
+            listener: (context, state) {
+              if (state is AdoptionPhotoSubmitted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(state.message), backgroundColor: Colors.green)
+                );
+              } else if (state is AdoptionError) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(state.message), backgroundColor: Colors.red)
+                );
+              }
+            },
+            builder: (context, state) {
+              if (state is AdoptionLoading) {
+                return const Padding(
+                  padding: EdgeInsets.all(32.0),
+                  child: Center(child: CircularProgressIndicator(color: Colors.purple)),
+                );
+              } else if (state is AdoptionLoaded) {
+                if (state.trackings.isEmpty) {
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 60.0),
+                    child: Center(
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Chó Poodle đi lạc', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.grey)),
-                          Text('Bàn giao Trạm cứu hộ Quận 2', style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+                          Icon(Icons.pets, size: 64, color: Colors.grey.shade300),
+                          const SizedBox(height: 16),
+                          const Text("Chưa có nhiệm vụ nào.", style: TextStyle(color: Colors.grey, fontSize: 16, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 8),
+                          Text("Hãy nhận nuôi hoặc đi cứu hộ để tích điểm nhé!", style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
                         ],
-                      ),
-                    )
-                  ],
-                ),
-              ],
-            ),
+                      )
+                    ),
+                  );
+                }
+                
+                // Trả ra danh sách các bé đang được người này nhận nuôi
+                return Column(
+                  children: state.trackings.map((tracking) => _DynamicAdoptionCard(model: tracking)).toList(),
+                );
+              }
+              return const SizedBox.shrink();
+            },
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildProgressDot({required bool isActive, required bool isCompleted, required String label, bool isPulsing = false}) {
-    return Container(
-      width: 20, height: 20,
-      decoration: BoxDecoration(
-        color: isActive ? Colors.purple.shade500 : Colors.grey.shade300, shape: BoxShape.circle,
-        border: isPulsing ? Border.all(color: Colors.purple.shade100, width: 4) : null,
-      ),
-      child: Center(
-        child: isCompleted ? const Icon(Icons.check, size: 12, color: Colors.white) : Text(label, style: TextStyle(fontSize: 10, color: isActive ? Colors.white : Colors.grey.shade600, fontWeight: FontWeight.bold)),
+        ],
       ),
     );
   }
 
-  Widget _buildProgressLine({required bool isActive}) {
-    return Expanded(child: Container(height: 2, color: isActive ? Colors.purple.shade500 : Colors.grey.shade300));
-  }
-
-  // TAB 2: Reporter Flow
   Widget _buildMyReportsTab() {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        // Card Report 1: Có người đang cứu 
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.grey.shade200), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8)]),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('Chó hoang bị thương', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                  Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(4)), child: Text('CÓ RESCUER NHẬN', style: TextStyle(color: Colors.blue.shade700, fontSize: 10, fontWeight: FontWeight.bold))),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Text('Bạn báo cáo 2 giờ trước', style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
-              const SizedBox(height: 16),
-              
-              // Timeline mini
-              Container(
-                padding: const EdgeInsets.only(left: 8),
-                decoration: BoxDecoration(border: Border(left: BorderSide(color: Colors.grey.shade200, width: 2))),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildTimelineItem(isActive: true, title: 'Rescuer "Trần Văn A" đang tới hiện trường', time: '15 phút trước'),
-                    const SizedBox(height: 12),
-                    _buildTimelineItem(isActive: false, title: 'Hệ thống ghi nhận ca cứu hộ', time: '2 giờ trước'),
-                  ],
-                ),
-              )
-            ],
+        Padding(
+          padding: const EdgeInsets.only(top: 60.0),
+          child: Center(
+            child: Column(
+              children: [
+                Icon(Icons.speaker_notes_off, size: 64, color: Colors.grey.shade300),
+                const SizedBox(height: 16),
+                const Text("Chưa có báo cáo nào.", style: TextStyle(color: Colors.grey, fontSize: 16, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                Text("Khi bạn báo cáo SOS, trạng thái sẽ cập nhật tại đây.", style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
+              ],
+            )
           ),
-        ),
-        const SizedBox(height: 16),
-
-        // Card Report 2: Đang chờ
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.grey.shade200), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8)]),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('Mèo kẹt trên mái', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                  Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(4)), child: Text('ĐANG CHỜ', style: TextStyle(color: Colors.red.shade700, fontSize: 10, fontWeight: FontWeight.bold))),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Text('Bạn báo cáo 5 phút trước', style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(8)),
-                child: Row(
-                  children: [
-                    Icon(Icons.wifi_tethering, color: Colors.red.shade500, size: 16),
-                    const SizedBox(width: 8),
-                    Text('Tín hiệu đang phát bán kính 5km', style: TextStyle(fontSize: 12, color: Colors.red.shade700, fontWeight: FontWeight.w500)),
-                  ],
-                ),
-              )
-            ],
-          ),
-        ),
+        )
       ],
     );
   }
@@ -373,5 +212,178 @@ class ActivityHistoryScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _DynamicAdoptionCard extends StatefulWidget {
+  final AdoptionTrackingModel model;
+  const _DynamicAdoptionCard({required this.model});
+
+  @override
+  State<_DynamicAdoptionCard> createState() => _DynamicAdoptionCardState();
+}
+
+class _DynamicAdoptionCardState extends State<_DynamicAdoptionCard> {
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    // Khởi tạo Timer để cập nhật UI đếm ngược thời gian mỗi giây (Phục vụ Demo 2 phút cực gắt)
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _takeAndSubmitPhoto() async {
+    final picker = ImagePicker();
+    final photo = await picker.pickImage(source: ImageSource.camera, imageQuality: 100);
+    
+    if (photo != null) {
+      File originalFile = File(photo.path);
+      // Nén ảnh siêu nhẹ trước khi gửi
+      File? compressedFile = await ImageCompressHelper.compressImage(originalFile);
+      
+      if (mounted) {
+        context.read<AdoptionBloc>().add(
+          SubmitWeeklyPhotoEvent(
+            trackingId: widget.model.id, 
+            weekNumber: widget.model.currentWeek, 
+            imageFile: compressedFile ?? originalFile
+          )
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final model = widget.model;
+    final int currentWeek = model.currentWeek;
+    final bool isCompleted = model.trackingStatus == 'COMPLETED';
+    final bool isCurrentSubmitted = model.isCurrentWeekSubmitted();
+    
+    // Format đếm ngược thời gian
+    final duration = model.timeUntilNextWeek;
+    final String countdown = "${duration.inMinutes.toString().padLeft(2, '0')}:${(duration.inSeconds % 60).toString().padLeft(2, '0')}";
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white, 
+        borderRadius: BorderRadius.circular(16), 
+        border: Border(left: BorderSide(color: isCompleted ? Colors.green : Colors.purple, width: 4)), 
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)]
+      ),
+      child: Column(
+        children: [
+          // Tiêu đề trạng thái
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: isCompleted ? Colors.green.shade50 : Colors.purple.shade50, 
+                  borderRadius: BorderRadius.circular(4)
+                ),
+                child: Row(
+                  children: [
+                    Icon(isCompleted ? Icons.verified : Icons.home, size: 12, color: isCompleted ? Colors.green.shade700 : Colors.purple.shade700), 
+                    const SizedBox(width: 4), 
+                    Text(
+                      isCompleted ? 'CHÍNH THỨC SỞ HỮU' : 'ĐANG THEO DÕI', 
+                      style: TextStyle(color: isCompleted ? Colors.green.shade700 : Colors.purple.shade700, fontSize: 10, fontWeight: FontWeight.bold)
+                    )
+                  ]
+                ),
+              ),
+              Text(isCompleted ? 'Hoàn thành' : 'Tuần $currentWeek / 4', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: isCompleted ? Colors.green : Colors.purple.shade600))
+            ],
+          ),
+          const SizedBox(height: 12),
+          
+          // Thông tin Pet
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 24, 
+                backgroundImage: NetworkImage(model.petImageUrl ?? 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?q=80&w=200&auto=format&fit=crop'), 
+                backgroundColor: Colors.grey.shade200
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(model.petName ?? 'Thú cưng', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    Text('Ngày bắt đầu: ${model.createdAt.day}/${model.createdAt.month}/${model.createdAt.year}', style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+                  ],
+                ),
+              )
+            ],
+          ),
+          const SizedBox(height: 16),
+          
+          Row(
+            children: [
+              _buildProgressDot(isActive: currentWeek >= 1, isCompleted: model.week1Image != null, label: '1', isPulsing: currentWeek == 1 && !isCurrentSubmitted),
+              _buildProgressLine(isActive: currentWeek >= 2),
+              _buildProgressDot(isActive: currentWeek >= 2, isCompleted: model.week2Image != null, label: '2', isPulsing: currentWeek == 2 && !isCurrentSubmitted),
+              _buildProgressLine(isActive: currentWeek >= 3),
+              _buildProgressDot(isActive: currentWeek >= 3, isCompleted: model.week3Image != null, label: '3', isPulsing: currentWeek == 3 && !isCurrentSubmitted),
+              _buildProgressLine(isActive: currentWeek >= 4),
+              _buildProgressDot(isActive: currentWeek >= 4, isCompleted: model.week4Image != null, label: '4', isPulsing: currentWeek == 4 && !isCurrentSubmitted),
+            ],
+          ),
+          const SizedBox(height: 16),
+          
+          if (!isCompleted)
+            SizedBox(
+              width: double.infinity,
+              child: isCurrentSubmitted
+                ? OutlinedButton.icon(
+                    onPressed: null, // Khóa nút vì tuần này nộp ảnh rồi
+                    icon: const Icon(Icons.timer), 
+                    label: Text(duration.isNegative ? 'Đang tải tuần mới...' : 'Mở khóa Tuần ${currentWeek + 1} sau: $countdown'),
+                    style: OutlinedButton.styleFrom(disabledForegroundColor: Colors.grey.shade600, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                  )
+                : ElevatedButton.icon(
+                    onPressed: _takeAndSubmitPhoto, 
+                    icon: const Icon(Icons.camera_alt), 
+                    label: Text('Chụp ảnh xác nhận Tuần $currentWeek'),
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.purple.shade500, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                  ),
+            )
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProgressDot({required bool isActive, required bool isCompleted, required String label, bool isPulsing = false}) {
+    return Container(
+      width: 20, height: 20,
+      decoration: BoxDecoration(
+        color: isCompleted ? Colors.green : (isActive ? Colors.purple.shade500 : Colors.grey.shade300), 
+        shape: BoxShape.circle,
+        border: isPulsing ? Border.all(color: Colors.purple.shade100, width: 4) : null,
+      ),
+      child: Center(
+        child: isCompleted 
+          ? const Icon(Icons.check, size: 12, color: Colors.white) 
+          : Text(label, style: TextStyle(fontSize: 10, color: isActive ? Colors.white : Colors.grey.shade600, fontWeight: FontWeight.bold)),
+      ),
+    );
+  }
+
+  Widget _buildProgressLine({required bool isActive}) {
+    return Expanded(child: Container(height: 2, color: isActive ? Colors.purple.shade500 : Colors.grey.shade300));
   }
 }
