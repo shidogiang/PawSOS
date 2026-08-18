@@ -3,7 +3,7 @@ import '../models/AdoptionTrackingModel.dart';
 abstract class AdoptionRemoteDataSource {
   Future<List<AdoptionTrackingModel>> getMyTrackings();
   Future<bool> submitWeeklyImage({required String trackingId, required int week, required dynamic imageFile});
-  Future<Map<String, int>> getActivityStats(); // THÊM HÀM NÀY
+  Future<Map<String, int>> getActivityStats(); 
 
 }
 
@@ -27,7 +27,7 @@ class AdoptionRemoteDataSourceImpl implements AdoptionRemoteDataSource {
     // Chuyển Map thành Model
     return (response as List).map((json) {
       final model = AdoptionTrackingModel.fromJson(json);
-      // Gắn thêm data Join (Thủ thuật nhét data vào model có sẵn)
+      // Gắn thêm data Join 
       model.petName = json['animal_reports']['animal_type'];
       model.petImageUrl = json['animal_reports']['image_url'];
       return model;
@@ -37,7 +37,7 @@ class AdoptionRemoteDataSourceImpl implements AdoptionRemoteDataSource {
   @override
   Future<bool> submitWeeklyImage({required String trackingId, required int week, required dynamic imageFile}) async {
     try {
-      // 1. Upload ảnh lên Storage (Bucket: adoption_images)
+      // Bucket: adoption_images
       final fileExt = imageFile.path.split('.').last;
       final fileName = '${DateTime.now().millisecondsSinceEpoch}_week$week.$fileExt';
       
@@ -47,7 +47,7 @@ class AdoptionRemoteDataSourceImpl implements AdoptionRemoteDataSource {
 
       final imageUrl = supabaseClient.storage.from('adoption_images').getPublicUrl('$trackingId/$fileName');
 
-      // 2. Cập nhật URL ảnh vào cột tương ứng (week_1_image, week_2_image...)
+      // 
       final columnName = 'week_${week}_image';
       
       await supabaseClient
@@ -55,7 +55,6 @@ class AdoptionRemoteDataSourceImpl implements AdoptionRemoteDataSource {
           .update({columnName: imageUrl})
           .eq('id', trackingId);
 
-      // (Tùy chọn) Chốt trạng thái COMPLETED nếu đã nộp đủ tuần 4
       if (week == 4) {
          await supabaseClient.from('adoption_tracking').update({'tracking_status': 'COMPLETED'}).eq('id', trackingId);
       }
@@ -72,10 +71,8 @@ class AdoptionRemoteDataSourceImpl implements AdoptionRemoteDataSource {
     if (userId == null) return {'rescued': 0, 'reported': 0};
 
     try {
-      // Đếm số ca đã cứu thành công (RESOLVED)
       final rescued = await supabaseClient.from('animal_reports').select('id').eq('rescuer_id', userId).eq('status', 'RESOLVED');
       
-      // Đếm số ca đã báo cáo (Mọi status)
       final reported = await supabaseClient.from('animal_reports').select('id').eq('reporter_id', userId);
 
       return {

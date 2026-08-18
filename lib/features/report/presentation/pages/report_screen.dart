@@ -33,25 +33,19 @@ class _ReportEmergencyScreenState extends State<ReportEmergencyScreen> with Sing
   String _selectedAnimalType = 'Mèo'; 
   final List<String> _selectedConditions = []; 
   final TextEditingController _noteCtrl = TextEditingController();
-  
-  // Trạng thái Gửi báo cáo
-  // bool _isSubmitting = false; // Đã xóa vì BLoC quản lý
-  // bool _isSuccess = false;    // Đã xóa vì BLoC quản lý
-
   late AnimationController _pulseController;
 
   @override
   void initState() {
     super.initState();
+    context.read<ReportBloc>().add(ResetReportEvent());
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 2),
     )..repeat();
 
-    // Vừa vào màn hình là kích hoạt radar tìm GPS thật ngay
     Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) setState(() => _isFetchingGps = true);
-      _getCurrentLocation();
+      if (mounted) _getCurrentLocation();
     });
   }
 
@@ -62,7 +56,7 @@ class _ReportEmergencyScreenState extends State<ReportEmergencyScreen> with Sing
     super.dispose();
   }
 
-  // HÀM 1: LẤY TỌA ĐỘ GPS THỰC TẾ
+  // Lấy tọa độ GPS
   Future<void> _getCurrentLocation() async {
     bool serviceEnabled;
     LocationPermission permission;
@@ -92,27 +86,41 @@ class _ReportEmergencyScreenState extends State<ReportEmergencyScreen> with Sing
       return;
     } 
 
-    // Lấy tọa độ (Độ chính xác cao nhất)
     try {
-      Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.best,
-      );
+      Position? finalPosition;
+
+      // Móc Cache lót đường 
+      Position? lastKnown = await Geolocator.getLastKnownPosition();
       
-      if (mounted) {
+      // Xin tọa độ xịn với timeout 15 giây
+      try {
+        finalPosition = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high,
+          timeLimit: const Duration(seconds: 15), 
+        );
+      } catch (e) {
+        // Nếu timeout hoặc lỗi, móc tọa độ Cache ra xài đỡ
+        finalPosition = lastKnown;
+      }
+
+      if (finalPosition != null && mounted) {
         setState(() {
-          _gpsLat = position.latitude.toStringAsFixed(6); // Lấy 6 số thập phân
-          _gpsLng = position.longitude.toStringAsFixed(6);
-          _gpsAccuracy = '${position.accuracy.toStringAsFixed(0)}m';
+          _gpsLat = finalPosition!.latitude.toStringAsFixed(6); 
+          _gpsLng = finalPosition.longitude.toStringAsFixed(6);
+          _gpsAccuracy = '${finalPosition.accuracy.toStringAsFixed(0)}m';
           _isFetchingGps = false;
         });
+      } else {
+        if (mounted) setState(() => _isFetchingGps = false);
+        _showError("Không thể lấy tọa độ hiện tại, vui lòng ra khu vực thoáng hơn.");
       }
     } catch (e) {
       if (mounted) setState(() => _isFetchingGps = false);
-      _showError("Lỗi không thể lấy tọa độ: $e");
+      _showError("Lỗi hệ thống GPS: $e");
     }
   }
 
-  // HÀM 2: MỞ CAMERA VÀ CHỤP ẢNH
+  // Mở camera chụp ảnh
   Future<void> _openCamera() async {
     try {
       final XFile? photo = await _picker.pickImage(
@@ -122,7 +130,7 @@ class _ReportEmergencyScreenState extends State<ReportEmergencyScreen> with Sing
 
       if (photo != null) {
         File originalFile = File(photo.path);
-        
+        // thuật toán nén ảnh
         File? compressedFile = await ImageCompressHelper.compressImage(originalFile);
 
         setState(() {
@@ -171,7 +179,6 @@ class _ReportEmergencyScreenState extends State<ReportEmergencyScreen> with Sing
     
     FocusScope.of(context).unfocus();
     
-    // Gửi tín hiệu vào BLoC
     context.read<ReportBloc>().add(SubmitEmergencyReport(
       imageFile: _photoFile!,
       lat: double.parse(_gpsLat),
@@ -184,11 +191,9 @@ class _ReportEmergencyScreenState extends State<ReportEmergencyScreen> with Sing
 
   @override
   Widget build(BuildContext context) {
-    // Bọc BlocConsumer để lắng nghe state
     return BlocConsumer<ReportBloc, ReportState>(
       listener: (context, state) {
         if (state is ReportSuccess) {
-          // Báo thành công và quay về Home sau 2 giây
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text("Phát tín hiệu SOS thành công!"),
@@ -203,7 +208,6 @@ class _ReportEmergencyScreenState extends State<ReportEmergencyScreen> with Sing
         }
       },
       builder: (context, state) {
-        // Lấy state loading từ Bloc
         final isSubmitting = state is ReportLoading;
         final isSuccess = state is ReportSuccess;
 
@@ -242,8 +246,6 @@ class _ReportEmergencyScreenState extends State<ReportEmergencyScreen> with Sing
                   ),
                 ),
               ),
-
-              // Nút gửi báo cáo (Sticky Bottom)
               Positioned(
                 left: 0, right: 0, bottom: 0,
                 child: Container(
@@ -281,7 +283,6 @@ class _ReportEmergencyScreenState extends State<ReportEmergencyScreen> with Sing
                 ),
               ),
 
-              // Overlay Loading
               if (isSubmitting || isSuccess)
                 Container(
                   color: Colors.white.withOpacity(0.9),
@@ -319,7 +320,7 @@ class _ReportEmergencyScreenState extends State<ReportEmergencyScreen> with Sing
     );
   }
 
-  // --- CÁC COMPONENT CON GIAO DIỆN ---
+  // Components
 
   Widget _buildCameraSection() {
     return Padding(

@@ -7,7 +7,6 @@ abstract class AuthEvent extends Equatable {
   List<Object?> get props => [];
 }
 
-// Đăng ký
 class AuthRegisterSubmitted extends AuthEvent {
   final String fullName;
   final String phone;
@@ -23,7 +22,6 @@ class AuthRegisterSubmitted extends AuthEvent {
   List<Object?> get props => [fullName, phone, password];
 }
 
-//  Đăng nhập
 class AuthLoginSubmitted extends AuthEvent {
   final String phone;
   final String password;
@@ -37,5 +35,4 @@ class AuthLoginSubmitted extends AuthEvent {
   List<Object?> get props => [phone, password];
 }
 
-// Đăng xuất
 class AuthLogoutRequested extends AuthEvent {}

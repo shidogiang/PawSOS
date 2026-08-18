@@ -11,7 +11,7 @@ class AdoptionLoading extends AdoptionState {}
 
 class AdoptionLoaded extends AdoptionState {
   final List<AdoptionTrackingModel> trackings;
-  final int rescuedCount;   // THÊM BIẾN NÀY
+  final int rescuedCount;   
   final int reportedCount; 
   AdoptionLoaded({
      required this.trackings,  required this.rescuedCount,  required this.reportedCount});

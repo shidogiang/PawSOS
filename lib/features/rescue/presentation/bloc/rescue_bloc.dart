@@ -7,44 +7,40 @@ import 'package:paw_sos/features/rescue/domain/usecases/get_radar_reports_usecas
 import 'package:paw_sos/features/rescue/domain/usecases/accept_mission_usecase.dart';
 import 'package:paw_sos/features/rescue/domain/usecases/get_ongoing_mission_usecase.dart';
 import 'package:paw_sos/features/rescue/domain/usecases/complete_mission_usecase.dart';
+import 'package:paw_sos/features/rescue/domain/usecases/cancel_mission_usecase.dart';
 
 class RescueBloc extends Bloc<RescueEvent, RescueState> {
-  // BLoC CHỈ GIAO TIẾP VỚI USECASE
   final GetRadarReportsUseCase getRadarReportsUseCase;
   final AcceptMissionUseCase acceptMissionUseCase;
   final CheckOngoingMissionUseCase checkOngoingMissionUseCase;
   final CompleteMissionUseCase completeMissionUseCase;
+  final CancelMissionUseCase cancelMissionUseCase;
+
   RescueBloc({
     required this.getRadarReportsUseCase,
     required this.acceptMissionUseCase,
     required this.checkOngoingMissionUseCase,
     required this.completeMissionUseCase,
+    required this.cancelMissionUseCase,
   }) : super(RescueInitial()) {
-    
-    // Xử lý kéo dữ liệu Radar
     on<LoadRadarReports>((event, emit) async {
       emit(RescueLoading());
       try {
-        // Dùng Future.wait để call 2 API cùng lúc
         final results = await Future.wait([
           getRadarReportsUseCase.call(),
           checkOngoingMissionUseCase.call(),
         ]);
-        
         final reports = results[0] as List<AnimalReportModel>;
         final ongoing = results[1] as AnimalReportModel?;
-
         emit(RadarLoaded(reports: reports, ongoingMission: ongoing));
       } catch (e) {
         emit(RescueError("Lỗi tải Radar: ${e.toString()}"));
       }
     });
 
-    // Xử lý Nhận ca cứu hộ
     on<AcceptMission>((event, emit) async {
       emit(RescueLoading());
       try {
-        // GỌI QUA USECASE BẰNG HÀM .call()
         final success = await acceptMissionUseCase.call(event.reportId);
         if (success) {
           emit(RescueMissionAccepted());
@@ -56,8 +52,6 @@ class RescueBloc extends Bloc<RescueEvent, RescueState> {
       }
     });
 
-    // Xử lý Hoàn thành ca cứu hộ
-    // LUỒNG HOÀN TẤT NHIỆM VỤ
     on<CompleteMission>((event, emit) async {
       emit(RescueLoading());
       try {
@@ -72,6 +66,19 @@ class RescueBloc extends Bloc<RescueEvent, RescueState> {
         emit(RescueError(e.toString()));
       }
     });
-    
+
+    on<CancelMissionEvent>((event, emit) async {
+      emit(RescueLoading());
+      try {
+        final success = await cancelMissionUseCase.call(event.reportId);
+        if (success) {
+          emit(RescueMissionCanceled());
+        } else {
+          emit(RescueError("Không thể hủy ca lúc này, vui lòng thử lại!"));
+        }
+      } catch (e) {
+        emit(RescueError(e.toString()));
+      }
+    });
   }
 }

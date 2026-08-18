@@ -47,20 +47,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
   }
 
-  // bơm Event vào BLoC
   void _handleSubmit() {
     if (!_isFormValid) return;
 
     FocusScope.of(context).unfocus();
 
-    // format số điện thoại chuẩn quốc tế (E.164) cho Supabase
     String rawPhone = _phoneCtrl.text.trim();
     if (rawPhone.startsWith('0')) {
       rawPhone = rawPhone.substring(1); // Bỏ số 0 ở đầu nếu có
     }
     String formattedPhone = '+84$rawPhone';
 
-    // Bơm Event vào BLoC
     context.read<AuthBloc>().add(
       AuthRegisterSubmitted(
         fullName: _nameCtrl.text.trim(),
@@ -97,11 +94,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      //  BlocConsumer để lắng nghe các trạng thái từ AuthBloc
       body: BlocConsumer<AuthBloc, AuthState>(
         listener: (context, state) {
           if (state is AuthSuccess) {
-            // TUYỆT CHIÊU: Chỉ chạy khi màn hình này đang hiển thị trên cùng
             if (ModalRoute.of(context)?.isCurrent == true) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
@@ -109,8 +104,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   backgroundColor: Colors.green,
                 ),
               );
-              
-              // Đá thẳng vào màn hình chính luôn vì Supabase đã tự login
               Navigator.pushAndRemoveUntil(
                 context,
                 MaterialPageRoute(builder: (_) => const MainTabScreen()),
@@ -130,7 +123,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
           }
         },
         builder: (context, state) {
-          // Đọc trạng thái loading từ BLoC để hiện overlay
           final isLoading = state is AuthLoading;
 
           return Stack(
@@ -335,7 +327,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ],
               ),
-              // ĐÃ SỬA: Hiển thị loading overlay dựa vào state của BLoC
               if (isLoading)
                 Positioned.fill(
                   child: Container(

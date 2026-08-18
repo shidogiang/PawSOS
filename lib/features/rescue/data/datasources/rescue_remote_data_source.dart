@@ -7,10 +7,12 @@ abstract class RescueRemoteDataSource {
   Future<AnimalReportModel?> getOngoingMission();
   Future<bool> completeMission({
     required String reportId,
-    required dynamic imageFile, // Dùng dynamic hoặc File đều được
+    required dynamic imageFile, 
     required String resultStatus,
     required String note,
   });
+  Future<bool> cancelMission(String reportId);
+
 }
 
 class RescueRemoteDataSourceImpl implements RescueRemoteDataSource {
@@ -31,7 +33,7 @@ class RescueRemoteDataSourceImpl implements RescueRemoteDataSource {
 
   @override
   Future<bool> acceptMission(String reportId) async {
-    // Gọi hàm RPC chốt đơn cứu hộ
+    // Gọi hàm RPC chốt cứu hộ
     final response = await supabaseClient.rpc('accept_rescue_mission', params: {
       'p_report_id': reportId
     });
@@ -56,34 +58,32 @@ class RescueRemoteDataSourceImpl implements RescueRemoteDataSource {
 
       final response = await query.order('created_at', ascending: false).limit(1);
       
-      print("🔍 [DEBUG] Kết quả từ DB trả về: $response");
+      print("🔍 [debug] Kết quả từ DB trả về: $response");
 
       if (response.isNotEmpty) {
-        print("✅ [DEBUG] ĐÃ TÌM THẤY CA CỨU HỘ DANG DỞ: ${response[0]['animal_type']}");
-        // FIX LỖI NGẦM: Bảng gốc không có noise_lat/lng, ta phải mớm dữ liệu mặc định để Model không bị crash
+        print("✅ [debug] ĐÃ TÌM THẤY CA CỨU HỘ DANG DỞ: ${response[0]['animal_type']}");
         final data = Map<String, dynamic>.from(response[0]);
         data['noise_lat'] = 10.77; 
         data['noise_lng'] = 106.65;
         
         return AnimalReportModel.fromJson(data);
       }
-      
-      print("❌ [DEBUG] KHÔNG CÓ CA NÀO DANG DỞ.");
+      print("❌ [debug] KHÔNG CÓ CA NÀO DANG DỞ.");
       return null;
     } catch (e) {
-      print("🔥 [DEBUG] Lỗi kéo ca dang dở: $e");
+      print("🔥 [debug] Lỗi kéo ca dang dở: $e");
       return null;
     }
   }
    @override
   Future<bool> completeMission({
     required String reportId,
-    required dynamic imageFile, // Dùng dynamic hoặc File đều được
+    required dynamic imageFile, 
     required String resultStatus,
     required String note,
   }) async {
     try {
-      // 1. Upload ảnh lên Supabase Storage
+      // Upload ảnh lên Supabase Storage
       final fileExt = imageFile.path.split('.').last;
       final fileName = '${DateTime.now().millisecondsSinceEpoch}_$reportId.$fileExt';
       
@@ -94,7 +94,7 @@ class RescueRemoteDataSourceImpl implements RescueRemoteDataSource {
       // Lấy Link ảnh public
       final imageUrl = supabaseClient.storage.from('rescue_images').getPublicUrl('confirmations/$fileName');
 
-      // 2. Gọi hàm RPC để chốt DB và cộng điểm
+      // Gọi hàm RPC để chốt DB và cộng điểm
       final response = await supabaseClient.rpc('complete_rescue_mission', params: {
         'p_report_id': reportId,
         'p_image_url': imageUrl,
@@ -105,6 +105,27 @@ class RescueRemoteDataSourceImpl implements RescueRemoteDataSource {
     } catch (e) {
       print('🔥 [DEBUG] Lỗi Complete Mission: $e');
       throw Exception('Lỗi hệ thống khi hoàn tất: $e');
+    }
+  }
+ @override
+  Future<bool> cancelMission(String reportId) async {
+    try {
+      final response = await supabaseClient
+          .from('animal_reports')
+          .update({
+            'status': 'OPEN',
+            'rescuer_id': null
+          })
+          .eq('id', reportId)
+          .select(); 
+      if ((response as List).isEmpty) {
+         throw Exception('Lỗi bảo mật RLS: Không có quyền hủy ca này!');
+      }
+      
+      return true;
+    } catch (e) {
+      print('🔥 [DEBUG] Lỗi Cancel Mission: $e');
+      throw Exception('Lỗi hệ thống khi hủy ca: $e');
     }
   }
 }

@@ -3,6 +3,8 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:paw_sos/screen/card/radar_item_card.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'active_rescue_screen.dart'; 
 import 'package:paw_sos/features/report/data/models/AnimalReportModel.dart'; 
@@ -25,11 +27,15 @@ class _RescueMapScreenState extends State<RescueMapScreen> with TickerProviderSt
   bool _showDetailPanel = false; 
   bool _showRadarPanel = true; 
   AnimalReportModel? _selectedReport; 
+  
+  LatLng _myLocation = const LatLng(10.762622, 106.660172); // Mặc định trước khi có GPS
+  bool _isLocating = true;
 
   @override
   void initState() {
     super.initState();
     context.read<RescueBloc>().add(LoadRadarReports());
+    _fetchMyLocation(); // Gọi hàm lấy GPS
 
     if (widget.initialReport != null) {
       _selectedReport = widget.initialReport;
@@ -57,6 +63,33 @@ class _RescueMapScreenState extends State<RescueMapScreen> with TickerProviderSt
     });
   }
 
+  Future<void> _fetchMyLocation() async {
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) return;
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.whileInUse || permission == LocationPermission.always) {
+        Position pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+        if (mounted) {
+          setState(() {
+            _myLocation = LatLng(pos.latitude, pos.longitude);
+            _isLocating = false;
+          });
+          if (_selectedReport == null) {
+            _mapController.move(_myLocation, 14.0);
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Lỗi GPS Radar: $e');
+    }
+  }
+
   void _handleClaimRescue() {
     if (_selectedReport != null) {
       context.read<RescueBloc>().add(AcceptMission(_selectedReport!.id));
@@ -70,10 +103,11 @@ class _RescueMapScreenState extends State<RescueMapScreen> with TickerProviderSt
     return BlocConsumer<RescueBloc, RescueState>(
       listener: (context, state) {
         if (state is RescueMissionAccepted) {
-          // 1. Ẩn panel xác nhận
+          
+          final missionToRescue = _selectedReport;
+          
           _closeDetail();
           
-          // 2. Hiện POPUP Thông báo chốt Phase 2
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Đã nhận ca! Bắt đầu định tuyến...'),
@@ -82,8 +116,6 @@ class _RescueMapScreenState extends State<RescueMapScreen> with TickerProviderSt
             )
           );
           
-          // 3. Delay 400ms để animation mượt rồi mới Push
-          final missionToRescue = _selectedReport;
           if (missionToRescue != null) {
             Future.delayed(const Duration(milliseconds: 400), () {
               if (mounted) {
@@ -92,7 +124,6 @@ class _RescueMapScreenState extends State<RescueMapScreen> with TickerProviderSt
                     builder: (context) => ActiveRescueScreen(mission: missionToRescue),
                   ),
                 ).then((_) {
-                  // Đi cứu về thì tải lại Radar
                   context.read<RescueBloc>().add(LoadRadarReports());
                 });
               }
@@ -121,8 +152,8 @@ class _RescueMapScreenState extends State<RescueMapScreen> with TickerProviderSt
               Positioned.fill(
                 child: FlutterMap(
                   mapController: _mapController,
-                  options: const MapOptions(
-                    initialCenter: LatLng(10.762622, 106.660172), 
+                  options: MapOptions(
+                    initialCenter: _myLocation, 
                     initialZoom: 13.0,
                   ),
                   children: [
@@ -132,6 +163,19 @@ class _RescueMapScreenState extends State<RescueMapScreen> with TickerProviderSt
                     ),
                     CircleLayer(
                       circles: _buildRadarCircles(nearbyReports),
+                    ),
+                    MarkerLayer(
+                      markers: [
+                        if (!_isLocating)
+                          Marker(
+                            point: _myLocation,
+                            width: 50, height: 50,
+                            child: Container(
+                              decoration: BoxDecoration(color: Colors.blue.withOpacity(0.3), shape: BoxShape.circle),
+                              child: const Center(child: Icon(Icons.my_location, color: Colors.blue, size: 24)),
+                            ),
+                          )
+                      ],
                     ),
                   ],
                 ),
@@ -166,7 +210,6 @@ class _RescueMapScreenState extends State<RescueMapScreen> with TickerProviderSt
                 ),
               ),
 
-              // THANH TRẠNG THÁI: NHIỆM VỤ ĐANG DANG DỞ (LIMBO STATE)
               if (ongoingMission != null && !_showDetailPanel)
                 Positioned(
                   top: 110, left: 16, right: 16,
@@ -307,6 +350,10 @@ class _RescueMapScreenState extends State<RescueMapScreen> with TickerProviderSt
 
   Widget _buildDetailPanel(bool isClaiming) {
     if (_selectedReport == null) return const SizedBox.shrink();
+    
+    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+    final isMyOwnReport = _selectedReport!.reporterId == currentUserId;
+
     return Container(
       height: MediaQuery.of(context).size.height * 0.65,
       decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(24)), boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 30, offset: Offset(0, -10))]),
@@ -353,10 +400,21 @@ class _RescueMapScreenState extends State<RescueMapScreen> with TickerProviderSt
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
-                      onPressed: isClaiming ? null : _handleClaimRescue,
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.red.shade500, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                      icon: isClaiming ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Icon(Icons.favorite, color: Colors.white),
-                      label: Text(isClaiming ? 'Đang gọi Supabase...' : 'TÔI SẼ ĐI CỨU BÉ NÀY!', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                      onPressed: isMyOwnReport ? null : (isClaiming ? null : _handleClaimRescue),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: isMyOwnReport ? Colors.grey.shade400 : Colors.red.shade500, 
+                        padding: const EdgeInsets.symmetric(vertical: 16), 
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))
+                      ),
+                      icon: isClaiming 
+                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) 
+                          : Icon(isMyOwnReport ? Icons.pan_tool : Icons.favorite, color: Colors.white),
+                      label: Text(
+                        isMyOwnReport 
+                            ? 'BẠN KHÔNG THỂ TỰ NHẬN CA CỦA MÌNH' 
+                            : (isClaiming ? 'Đang gọi Supabase...' : 'TÔI SẼ ĐI CỨU BÉ NÀY!'), 
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)
+                      ),
                     ),
                   )
                 ],

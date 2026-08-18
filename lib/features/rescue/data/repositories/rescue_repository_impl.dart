@@ -9,13 +9,11 @@ class RescueRepositoryImpl implements RescueRepository {
 
   @override
   Future<List<AnimalReportModel>> getRadarReports() async {
-    // Gọi xuống DataSource
     return await remoteDataSource.getRadarReports();
   }
 
   @override
   Future<bool> acceptMission(String reportId) async {
-    // Gọi xuống DataSource
     return await remoteDataSource.acceptMission(reportId);
   }
 
@@ -33,4 +31,8 @@ class RescueRepositoryImpl implements RescueRepository {
       note: note
     );
   }
+ Future<bool> cancelMission(String reportId) async {
+    return await remoteDataSource.cancelMission(reportId);
+  }
+
 }

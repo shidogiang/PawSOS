@@ -86,14 +86,12 @@ class _KycScreenState extends State<KycScreen> {
       ),
       body: Stack(
         children: [
-          // Nội dung cuộn
           Positioned.fill(
             child: SingleChildScrollView(
               padding: const EdgeInsets.only(bottom: 100),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Banner Bảo mật
                   Container(
                     color: Colors.blue.shade50,
                     padding: const EdgeInsets.all(16),
@@ -121,7 +119,6 @@ class _KycScreenState extends State<KycScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        //  SỐ ĐIỆN THOẠI
                         const Text('BƯỚC 1: LIÊN LẠC', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1)),
                         const SizedBox(height: 8),
                         Container(
@@ -150,7 +147,6 @@ class _KycScreenState extends State<KycScreen> {
                         ),
                         const SizedBox(height: 24),
 
-                        //  CCCD
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           crossAxisAlignment: CrossAxisAlignment.end,
@@ -169,7 +165,6 @@ class _KycScreenState extends State<KycScreen> {
                         ),
                         const SizedBox(height: 24),
 
-                        //  SELFIE AI
                         const Text('BƯỚC 3: AI NHẬN DIỆN CHÂN DUNG', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1)),
                         const SizedBox(height: 8),
                         GestureDetector(
@@ -179,7 +174,6 @@ class _KycScreenState extends State<KycScreen> {
                             decoration: BoxDecoration(color: _isSelfieDone ? Colors.green.shade50 : Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: _isSelfieDone ? Colors.green.shade400 : Colors.grey.shade200)),
                             child: Row(
                               children: [
-                                // Vòng tròn Avatar
                                 Container(
                                   width: 80, height: 80,
                                   decoration: BoxDecoration(
@@ -196,7 +190,6 @@ class _KycScreenState extends State<KycScreen> {
                                   ),
                                 ),
                                 const SizedBox(width: 16),
-                                // Text hướng dẫn
                                 Expanded(
                                   child: _isSelfieDone 
                                     ? Column(
@@ -246,7 +239,6 @@ class _KycScreenState extends State<KycScreen> {
             ),
           ),
 
-          // STICKY BUTTON BOTTOM
           Positioned(
             bottom: 0, left: 0, right: 0,
             child: Container(
@@ -267,7 +259,6 @@ class _KycScreenState extends State<KycScreen> {
             ),
           ),
 
-          // OVERLAY LOADING (Khi Submit)
           if (_isSubmitting)
             Positioned.fill(
               child: Container(
@@ -289,7 +280,6 @@ class _KycScreenState extends State<KycScreen> {
     );
   }
 
-  // Helper cho ô chụp CCCD
   Widget _buildIdCardBox({required String title, required bool isDone, required VoidCallback onTap, bool isGrayscale = false}) {
     return GestureDetector(
       onTap: onTap,

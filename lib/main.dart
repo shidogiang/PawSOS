@@ -1,4 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:paw_sos/features/message/data/datasources/message_remote_datasource.dart';
+import 'package:paw_sos/features/message/data/repositories/message_repository_impl.dart';
+import 'package:paw_sos/features/message/domain/usecases/send_message_usecase.dart';
+import 'package:paw_sos/features/message/domain/usecases/stream_message_usecase.dart';
+import 'package:paw_sos/features/message/presentation/bloc/message_bloc.dart';
+import 'package:paw_sos/features/profile/data/datasources/profile_remote_datasource.dart';
+import 'package:paw_sos/features/profile/data/repositories/profile_repository_impl.dart';
+import 'package:paw_sos/features/profile/domain/usecases/get_profile_usecase.dart';
+import 'package:paw_sos/features/profile/presentation/bloc/profile_bloc.dart';
+import 'package:paw_sos/features/report/domain/usecases/delete_report_usecase.dart';
+import 'package:paw_sos/features/report/domain/usecases/stream_report_usecase.dart';
+import 'package:paw_sos/features/rescue/domain/usecases/cancel_mission_usecase.dart';
 import 'package:paw_sos/screen/start/main_tab_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -23,6 +35,13 @@ import 'features/adoption/domain/usecases/get_my_tracking_usecase.dart';
 import 'features/adoption/domain/usecases/submit_weekly_usecase.dart';
 import 'features/adoption/presentation/bloc/adoption_bloc.dart';
 import 'features/adoption/domain/usecases/get_activity_stats_usecase.dart';
+import 'features/notification/data/datasources/noti_remote_datasource.dart';
+import 'features/notification/data/repositories/noti_repository_impl.dart';
+import 'features/notification/domain/usecases/stream_usecase.dart';
+import 'features/notification/domain/usecases/mark_noti_usecase.dart';
+import 'features/notification/presentation/bloc/noti_bloc.dart';
+
+
 void main()  async {
   WidgetsFlutterBinding.ensureInitialized();
   try{
@@ -43,6 +62,8 @@ void main()  async {
   // khởi tạo data source và repository cho ReportBloc
   final reportRemoteDataSource = ReportRemoteDataSourceImpl(supabaseClient);
   final reportRepository = ReportRepositoryImpl(reportRemoteDataSource);
+  final streamMyReportsUseCase = StreamMyReportsUseCase(reportRepository);
+  final deleteReportUseCase = DeleteReportUseCase(reportRepository);
  // khởi tạo data source và repository cho RescueBloc
   final rescueRemoteDataSource = RescueRemoteDataSourceImpl(supabaseClient);
   final rescueRepository = RescueRepositoryImpl(rescueRemoteDataSource);
@@ -50,12 +71,30 @@ void main()  async {
   final acceptMissionUseCase = AcceptMissionUseCase(rescueRepository);
   final checkOngoingMissionUseCase = CheckOngoingMissionUseCase(rescueRepository);
   final completeMissionUseCase = CompleteMissionUseCase(rescueRepository);
+  final cancelMissionUseCase = CancelMissionUseCase(rescueRepository);
+
   // khởi tạo data source và repository cho AdoptionBloc
   final adoptionRemoteDataSource = AdoptionRemoteDataSourceImpl(supabaseClient);
   final adoptionRepository = AdoptionRepositoryImpl(adoptionRemoteDataSource);
   final getMyTrackingsUseCase = GetMyTrackingsUseCase(adoptionRepository);
   final submitWeeklyImageUseCase = SubmitWeeklyImageUseCase(adoptionRepository);
   final getActivityStatsUseCase = GetActivityStatsUseCase(adoptionRepository);
+  //khởi tạo data source và repository cho NotificationBloc
+  final notificationRemoteDataSource = NotificationRemoteDataSourceImpl(supabaseClient);
+  final notificationRepository = NotificationRepositoryImpl(notificationRemoteDataSource);
+  final streamNotificationsUseCase = StreamNotificationsUseCase(notificationRepository);
+  final markNotificationReadUseCase = MarkNotificationReadUseCase(notificationRepository);
+  // khởi tạo data source và repo cho MessageBloc
+  final chatRemoteDataSource = ChatRemoteDataSourceImpl(supabaseClient);
+  final chatRepository = ChatRepositoryImpl(chatRemoteDataSource);
+  final streamMessagesUseCase = StreamMessagesUseCase(chatRepository);
+  final sendMessageUseCase = SendMessageUseCase(chatRepository);
+  // khởi tạo data và repo cho ProfileBloc
+  final profileRemoteDataSource = ProfileRemoteDataSourceImpl(supabaseClient);
+  final profileRepository = ProfileRepositoryImpl(profileRemoteDataSource);
+  final getProfileUseCase = GetProfileUseCase(profileRepository);
+
+   
   runApp(MultiBlocProvider(
     providers:[
       BlocProvider(
@@ -65,11 +104,16 @@ void main()  async {
         create: (context) => ReportBloc(reportRepository: reportRepository),
       ),
       BlocProvider(
+        create: (context) => MyReportBloc(streamMyReportsUseCase: streamMyReportsUseCase, deleteReportUseCase: deleteReportUseCase)
+      ),
+      BlocProvider(
         create: (context) => RescueBloc(
           getRadarReportsUseCase: getRadarReportsUseCase,
           acceptMissionUseCase: acceptMissionUseCase,
           checkOngoingMissionUseCase: checkOngoingMissionUseCase,
-          completeMissionUseCase: completeMissionUseCase
+          completeMissionUseCase: completeMissionUseCase,
+          cancelMissionUseCase: cancelMissionUseCase,
+
         ),
       ),
       BlocProvider(
@@ -77,6 +121,23 @@ void main()  async {
           getMyTrackingsUseCase: getMyTrackingsUseCase,
           submitWeeklyImageUseCase: submitWeeklyImageUseCase,
           getActivityStatsUseCase: getActivityStatsUseCase,
+        ),
+      ),
+      BlocProvider(
+        create: (context) => NotificationBloc(
+          streamNotificationsUseCase: streamNotificationsUseCase,
+          markNotificationReadUseCase: markNotificationReadUseCase,
+        ),
+      ),
+      BlocProvider(
+        create: (context) => ChatBloc(
+          streamMessagesUseCase: streamMessagesUseCase,
+          sendMessageUseCase: sendMessageUseCase,
+        ),
+      ),
+       BlocProvider(
+        create: (context) => ProfileBloc(
+          getProfileUseCase: getProfileUseCase,
         ),
       ),
     ],
@@ -132,7 +193,6 @@ class PawsSOSApp extends StatelessWidget {
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         ),
       ),
-      // ROUTING LOGIC 
       home: Supabase.instance.client.auth.currentSession != null 
         ? const MainTabScreen() 
         : const LoginScreen(),

@@ -8,7 +8,7 @@ abstract class RescueState extends Equatable {
 
 class RescueInitial extends RescueState {}
 class RescueLoading extends RescueState {}
-
+class RescueMissionCanceled extends RescueState {}
 class RadarLoaded extends RescueState {
   final List<AnimalReportModel> reports;
   final AnimalReportModel? ongoingMission;
@@ -25,5 +25,5 @@ class RescueError extends RescueState {
   @override
   List<Object?> get props => [message];
 }
-class RescueMissionCompleted extends RescueState {} // THÊM STATE NÀY
+class RescueMissionCompleted extends RescueState {} 
 

@@ -34,32 +34,4 @@ class AnimalReportModel extends AnimalReportEntity {
       createdAt: DateTime.parse(json['created_at']),
     );
   }
-
-  // Test data 
-  static List<AnimalReportModel> getMockData() {
-    return [
-      AnimalReportModel(
-        id: 'rpt_001',
-        reporterId: 'user_1',
-        animalType: 'Chó cỏ - Bị xe đụng',
-        conditions: const ['🩸 Bị thương'],
-        description: 'Bé nằm thoi thóp ven đường, gãy chân sau. Mong ai đó đến nhanh.',
-        imageUrl: 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?q=80&w=600&auto=format&fit=crop',
-        status: 'OPEN',
-        noiseLat: 10.762622, noiseLng: 106.660172,
-        createdAt: DateTime.now().subtract(const Duration(minutes: 15)),
-      ),
-      AnimalReportModel(
-        id: 'rpt_002',
-        reporterId: 'user_2',
-        animalType: 'Mèo hoang - Mắc kẹt',
-        conditions: const ['⛓️ Mắc kẹt', '🥺 Suy kiệt / Đói'],
-        description: 'Mèo con kêu trên mái nhà tôn từ sáng, trời đang nắng gắt.',
-        imageUrl: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?q=80&w=600&auto=format&fit=crop',
-        status: 'OPEN',
-        noiseLat: 10.772622, noiseLng: 106.650172,
-        createdAt: DateTime.now().subtract(const Duration(hours: 2)),
-      ),
-    ];
-  }
 }

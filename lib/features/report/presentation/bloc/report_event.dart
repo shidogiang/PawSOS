@@ -23,3 +23,27 @@ class SubmitEmergencyReport extends ReportEvent {
     required this.note,
   });
 }
+class StartListeningMyReports extends ReportEvent {}
+class DeleteReportEvent extends ReportEvent {
+  final String reportId;
+  DeleteReportEvent(this.reportId);
+  @override
+  List<Object?> get props => [reportId];
+
+}
+class UpdateEmergencyReport extends ReportEvent {
+  final String reportId;
+  final File? newImageFile;
+  final String animalType;
+  final List<String> conditions;
+  final String note;
+
+  UpdateEmergencyReport({
+    required this.reportId,
+    this.newImageFile,
+    required this.animalType,
+    required this.conditions,
+    required this.note,
+  });
+}
+class ResetReportEvent extends ReportEvent {}

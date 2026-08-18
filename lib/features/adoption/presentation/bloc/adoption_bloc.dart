@@ -15,11 +15,9 @@ class AdoptionBloc extends Bloc<AdoptionEvent, AdoptionState> {
     required this.getActivityStatsUseCase,
   }) : super(AdoptionInitial()) {
     
-    // XỬ LÝ LOAD DANH SÁCH
    on<LoadMyTrackings>((event, emit) async {
       emit(AdoptionLoading());
       try {
-        // Chạy song song 2 API cực nhanh
         final results = await Future.wait([
           getMyTrackingsUseCase.call(),
           getActivityStatsUseCase.call(),
@@ -38,14 +36,12 @@ class AdoptionBloc extends Bloc<AdoptionEvent, AdoptionState> {
       }
     });
 
-    // XỬ LÝ NỘP ẢNH TỪ UI TRUYỀN VÀO
     on<SubmitWeeklyPhotoEvent>((event, emit) async {
       emit(AdoptionLoading());
       try {
         await submitWeeklyImageUseCase.call(event.trackingId, event.weekNumber, event.imageFile);
         emit(AdoptionPhotoSubmitted("Tuyệt vời! Đã nộp ảnh Tuần ${event.weekNumber} thành công."));
         
-        // Nộp xong thì Load lại danh sách cho UI tự động cập nhật Thanh Tiến Độ
         add(LoadMyTrackings());
       } catch (e) {
         emit(AdoptionError(e.toString()));

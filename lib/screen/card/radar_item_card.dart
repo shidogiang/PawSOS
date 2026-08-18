@@ -28,13 +28,11 @@ class RadarItemCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            // Ảnh
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
               child: Image.network(report.imageUrl, width: 80, height: 80, fit: BoxFit.cover),
             ),
             const SizedBox(width: 12),
-            // Thông tin
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

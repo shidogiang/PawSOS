@@ -10,8 +10,8 @@ class AdoptionTrackingModel {
   final String trackingStatus;
   final DateTime createdAt;
 
-  String ? petName; // Tên con vật (lấy từ bảng animal_reports)
-  String ? petImageUrl; // URL ảnh con vật (lấy từ bảng animal_reports
+  String ? petName; 
+  String ? petImageUrl; 
 
   AdoptionTrackingModel({
     required this.id,
@@ -24,23 +24,17 @@ class AdoptionTrackingModel {
     required this.trackingStatus,
     required this.createdAt,
   });
-  // Trả về tuần hiện tại (từ 1 đến 4)
   int get currentWeek {
-    // 1. Tính thời gian đã trôi qua kể từ lúc nhận nuôi
     final timePassed = DateTime.now().difference(createdAt);
     
-    // 2. Lấy thời lượng 1 tuần (Thật là 7 ngày, Demo là 2 phút)
     final stageDuration = AppConfig.trackingStageDuration;
     
-    // 3. Chia lấy phần nguyên để biết đã qua mấy "tuần" (cộng 1 vì bắt đầu là tuần 1)
     int calculatedWeek = (timePassed.inMilliseconds / stageDuration.inMilliseconds).floor() + 1;
     
-    // 4. Giới hạn tối đa là tuần 4
     if (calculatedWeek > 4) return 4;
     return calculatedWeek;
   }
 
-  // Helper kiểm tra xem tuần hiện tại đã được nộp ảnh chưa
   bool isCurrentWeekSubmitted() {
     switch (currentWeek) {
       case 1: return week1Image != null;
@@ -51,12 +45,10 @@ class AdoptionTrackingModel {
     }
   }
 
-  // Trả về thời gian còn lại (đếm ngược) để mở khóa tuần tiếp theo
   Duration get timeUntilNextWeek {
     final timePassed = DateTime.now().difference(createdAt);
     final stageDuration = AppConfig.trackingStageDuration;
     
-    // Tổng thời gian từ lúc tạo đến đầu tuần tiếp theo
     final nextWeekTotalDuration = stageDuration * currentWeek;
     
     return nextWeekTotalDuration - timePassed;

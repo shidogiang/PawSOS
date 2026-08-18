@@ -12,11 +12,11 @@ class AcceptMission extends RescueEvent {
   AcceptMission(this.reportId);
 }
 class CompleteMission extends RescueEvent {
-  final String reportId;
-  final dynamic imageFile; // Thêm trường cho ảnh minh chứng
-  final String resultStatus; // Trạng thái kết quả cứu hộ
-  final String note; // Ghi chú thêm
 
+  final String reportId;
+  final dynamic imageFile; 
+  final String resultStatus; 
+  final String note; 
   CompleteMission(
      this.reportId,
      this.imageFile,
@@ -26,4 +26,11 @@ class CompleteMission extends RescueEvent {
 
   @override
   List<Object?> get props => [reportId, imageFile, resultStatus, note];
+}
+class CancelMissionEvent extends RescueEvent {
+  final String reportId;
+  CancelMissionEvent(this.reportId);
+  
+  @override
+  List<Object?> get props => [reportId];
 }

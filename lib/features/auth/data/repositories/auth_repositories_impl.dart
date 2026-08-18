@@ -9,7 +9,6 @@ class AuthRepositoryImpl implements IAuthRepository {
 
   @override
   Future<UserEntity> register({required String fullName, required String phone, required String password}) async {
-    // có thể thêm logic kiểm tra mạng 
     return await remoteDataSource.register(fullName, phone, password);
   }
 
@@ -25,7 +24,6 @@ class AuthRepositoryImpl implements IAuthRepository {
 
   @override
   Future<UserEntity?> getCurrentUser() async {
-    // Sẽ implement kiểm tra session sau
     return null; 
   }
 }

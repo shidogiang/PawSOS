@@ -49,7 +49,6 @@ class _RescueConfirmationScreenState extends State<RescueConfirmationScreen> wit
       );
       if (photo != null) {
         File originalFile = File(photo.path);
-        // GỌI THUẬT TOÁN NÉN ẢNH
         File? compressedFile = await ImageCompressHelper.compressImage(originalFile);
         
         setState(() => _photoFile = compressedFile ?? originalFile);
@@ -65,7 +64,6 @@ class _RescueConfirmationScreenState extends State<RescueConfirmationScreen> wit
       return;
     }
     
-    // GỬI EVENT BÊN BLOC
     context.read<RescueBloc>().add(
       CompleteMission(
         widget.mission.id,
@@ -84,9 +82,7 @@ class _RescueConfirmationScreenState extends State<RescueConfirmationScreen> wit
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Tuyệt vời! Bạn được cộng +10 điểm tín nhiệm.'), backgroundColor: Colors.green)
           );
-          // Đá về màn hình gốc (Mất thanh trạng thái đang cứu)
           Navigator.of(context).popUntil((route) => route.isFirst);
-          // Load lại Radar
           context.read<RescueBloc>().add(LoadRadarReports());
         } else if (state is RescueError) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.message), backgroundColor: Colors.red));

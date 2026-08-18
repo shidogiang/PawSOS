@@ -11,7 +11,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   final SupabaseClient supabaseClient;
 
   AuthRemoteDataSourceImpl(this.supabaseClient);
-// Hàm tạo Email giả từ Số điện thoại
+//  Email giả từ Số điện thoại
   String _generateFakeEmail(String phone) {
     final cleanPhone = phone.replaceAll('+', ''); // Xóa dấu +
     return '$cleanPhone@pawssos.com';
@@ -19,7 +19,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   @override
   Future<UserModel> register(String fullName, String phone, String password) async {
     // Dữ liệu 'full_name' và 'phone' được nhét vào thẻ 'data' (metadata).
-    // Dữ liệu này sẽ được cái Trigger handle_new_user() dưới SQL DB móc ra và insert vào bảng public.users.
+    // Dữ liệu này sẽ được Trigger handle_new_user() dưới SQL DB móc ra và insert vào bảng public.users.
     final fakeEmail = _generateFakeEmail(phone);
     final AuthResponse res = await supabaseClient.auth.signUp(
       email: fakeEmail,
@@ -34,7 +34,6 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       throw Exception("Lỗi: Không thể tạo tài khoản xác thực.");
     }
 
-    // kéo dữ liệu hồ sơ mà DB Trigger vừa tự động sinh ra trong bảng public.users
     final response = await supabaseClient
         .from('users')
         .select()
@@ -57,7 +56,6 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       throw Exception("Sai số điện thoại hoặc mật khẩu!");
     }
 
-    // Kéo thông tin chi tiết của user (như trust_score, avatar...) từ bảng public.users
     final response = await supabaseClient
         .from('users')
         .select()
@@ -68,7 +66,6 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   }
   @override
   Future<void> logout() async {
-    // Gọi Supabase xóa sạch Access Token & Refresh Token trên máy
     await supabaseClient.auth.signOut();
   }
 }

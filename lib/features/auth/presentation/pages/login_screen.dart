@@ -20,7 +20,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _passwordController = TextEditingController();
 
   bool _isPasswordVisible = false;
-  // ĐÃ XÓA: bool _isLoading = false; (BLoC sẽ tự quản lý)
 
   @override
   void dispose() {
@@ -33,7 +32,6 @@ class _LoginScreenState extends State<LoginScreen> {
     if (_formKey.currentState!.validate()) {
       FocusScope.of(context).unfocus();
 
-      // Xử lý format số điện thoại chuẩn quốc tế (E.164) cho Supabase
       String rawPhone = _usernameController.text.trim();
       if (rawPhone.startsWith('0')) {
         rawPhone = rawPhone.substring(1); // Bỏ số 0 ở đầu nếu có
@@ -41,7 +39,6 @@ class _LoginScreenState extends State<LoginScreen> {
       // Nếu người dùng nhập thẳng số điện thoại, ta tự động thêm +84
       String formattedPhone = rawPhone.startsWith('+') ? rawPhone : '+84$rawPhone';
 
-      // Bơm Event Đăng Nhập vào BLoC
       context.read<AuthBloc>().add(
         AuthLoginSubmitted(
           phone: formattedPhone,
@@ -57,11 +54,9 @@ class _LoginScreenState extends State<LoginScreen> {
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
         backgroundColor: Colors.white,
-        // ĐÃ THÊM: BlocConsumer để lắng nghe phản hồi từ Supabase
         body: BlocConsumer<AuthBloc, AuthState>(
           listener: (context, state) {
             if (state is AuthSuccess) {
-              // CHẶN LOGIN SCREEN CHUYỂN TRANG ẨN
               if (ModalRoute.of(context)?.isCurrent == true) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
@@ -91,9 +86,7 @@ class _LoginScreenState extends State<LoginScreen> {
             }
           },
           builder: (context, state) {
-            // Lấy trạng thái loading từ BLoC
             final isLoading = state is AuthLoading;
-
             return SafeArea(
               child: Center(
                 child: SingleChildScrollView(
@@ -130,7 +123,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         
                         TextFormField(
                           controller: _usernameController,
-                          keyboardType: TextInputType.phone, // Đổi sang bàn phím số
+                          keyboardType: TextInputType.phone, 
                           textInputAction: TextInputAction.next,
                           decoration: const InputDecoration(
                             labelText: 'Số điện thoại', 
@@ -201,7 +194,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         const SizedBox(height: 24),
 
                         ElevatedButton(
-                          onPressed: isLoading ? null : _submitForm, // Dùng biến isLoading của BLoC
+                          onPressed: isLoading ? null : _submitForm, 
                           child: isLoading
                               ? const SizedBox(
                                   height: 24,
