@@ -1,1 +1,12 @@
-Đây là bản chưa hoàn thiện của app do chưa kết nối API hoàn toàn để vận hành, đã xin trợ giảng Minh gia hạn chấm thêm 1 tuần, cảm ơn mentor và hội đồng chấm đã đọc
+Đã hoàn thành app v1.0
+Chức năng đã hoàn thiện
+- Đăng nhập (chưa có quên mật khẩu)/Đăng xuất
+- Đăng ký
+- Xem danh sách cứu hộ
+- Xem lịch sử báo cáo cứu hộ
+- Gửi yêu cầu cứu hộ
+- Nhận nhiệm vụ cứu hộ
+- Theo dõi quá trình nhận nuôi
+- Chat Real time
+
+  
